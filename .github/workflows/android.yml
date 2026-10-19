@@ -1,0 +1,70 @@
+name: Android-App bauen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Abhängigkeiten installieren
+        run: npm install --no-audit --no-fund
+
+      - name: three.js und Schriften offline einbinden
+        run: npm run vendor
+
+      - name: Android-Projekt erzeugen
+        run: |
+          npx cap add android
+          npx @capacitor/assets generate --android --iconBackgroundColor '#185c3a' --splashBackgroundColor '#0f0d0c' || echo "Icons übersprungen"
+          npx cap sync android
+
+      - name: Version setzen und Bildschirmdrehung erlauben
+        run: |
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity"\n            android:screenOrientation="fullUser"/' android/app/src/main/AndroidManifest.xml
+
+      - name: APK bauen
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: APK signieren
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          $BT/zipalign -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk aligned.apk
+          $BT/apksigner sign --ks signing/kreidekoenig.keystore --ks-key-alias kreidekoenig \
+            --ks-pass pass:kreidekoenig --key-pass pass:kreidekoenig --out Kreidekoenig.apk aligned.apk
+          $BT/apksigner verify Kreidekoenig.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kreidekoenig-APK
+          path: Kreidekoenig.apk
+
+      - name: Als Release veröffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Kreidekönig 1.0.${{ github.run_number }}
+          body: |
+            Zum Installieren auf dem Handy: Kreidekoenig.apk unten antippen, herunterladen und öffnen.
+            Updates einfach drüber installieren – der Spielstand bleibt erhalten.
+          files: Kreidekoenig.apk
+          make_latest: true

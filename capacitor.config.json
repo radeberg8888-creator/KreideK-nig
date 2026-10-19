@@ -1,0 +1,13 @@
+{
+  "appId": "de.patwerb.kreidekoenig",
+  "appName": "Kreidekönig",
+  "webDir": "www",
+  "backgroundColor": "#0f0d0c",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "StatusBar": { "overlaysWebView": true, "style": "DARK", "backgroundColor": "#00000000" }
+  }
+}
