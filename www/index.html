@@ -126,7 +126,7 @@ h2{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0;color:va
 
 /* Modal */
 #modal{position:fixed;inset:0;z-index:9;display:grid;place-items:center;background:rgba(0,0,0,.6);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.box{width:min(420px,100%);background:var(--panel);border:1px solid var(--brass2);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.box{width:min(460px,100%);max-height:88vh;overflow-y:auto;background:var(--panel);border:1px solid var(--brass2);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
 .box p{margin:0;line-height:1.5;color:var(--text)}
 .box .q{font-family:var(--f-mono);font-size:13px;color:var(--mute)}
 .mainwrap{max-width:440px;min-height:100%;justify-content:center}
@@ -148,11 +148,20 @@ h2{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0;color:va
 .tile.small svg{position:static;width:28px;height:28px}
 .prog{width:100%;max-width:200px;height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;position:relative}.prog i{display:block;height:100%;background:linear-gradient(90deg,#b98c35,#f0d28a)}
 .cuemini{width:100%;height:22px;display:block;margin-top:4px}
+.picklist{display:flex;flex-direction:column;gap:8px}
+.pick{display:flex;flex-direction:column;gap:6px;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid var(--edge);background:linear-gradient(160deg,#28221b,#13100d)}
+.pick.on{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass) inset,0 0 16px rgba(214,171,82,.2)}
+.pick.lock{opacity:.4}
+.pick canvas{width:100%;height:auto;aspect-ratio:14/1;display:block}
+.pick .ph{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.pick .ph b{font-family:var(--f-display);font-weight:400;font-size:17px;color:var(--brass)}
+.pick .ph small{font-size:11px;color:var(--mute);font-family:var(--f-mono)}
+.pick .stats{font-size:11px}
 .cuelist{display:flex;flex-direction:column;gap:10px}
 .cuecard{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px solid var(--edge);border-radius:14px;background:linear-gradient(160deg,#28221b,#13100d)}
 .cuecard.sel{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass) inset,0 0 18px rgba(214,171,82,.18)}
 .cuecard.lock{opacity:.6}
-.cuecard canvas{width:100%;height:auto;aspect-ratio:12/1;display:block;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6))}
+.cuecard canvas{width:100%;height:auto;aspect-ratio:14/1;display:block;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6))}
 .cuehead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .cuehead b{font-family:var(--f-display);font-weight:400;font-size:20px;color:var(--brass)}
 .cuehead small{font-size:12px;color:var(--mute);white-space:nowrap}
@@ -337,6 +346,105 @@ window.KK_CHAR={"bruno": "bulldog", "kalle": "hipster", "nina": "karate", "henni
 window.KK_NAME={"vivian": "Vincent Graf", "jansen": "Jule Jansen", "rocco": "Rocca Bellini", "henriette": "Jan Petersen", "pia": "Rolf Kemper", "mira": "Sven Adler", "hedwig": "Theo Bauer", "rieke": "Rik Elbing", "nadia": "Mats Lindner", "sunhee": "Hugo Brandt"};
 window.KK_NICK={"konstantin": "„Der Juwelier“", "rocco": "„Die Perfekte“", "mira": "Astronom", "rieke": "„Der Kapitän“", "nadia": "Weltenbummler", "sunhee": "Landesmeister", "ede": "„Die Bulldogge“", "moritz": "„Affenzahn“", "uwe": "„Affenzahn“", "hein": "„Die Bulldogge“", "pia": "„Affenzahn“", "lars": "„Die Bulldogge“"};
 window.KK_INTRO={"jansen": "Meine Mutter stand hier vierzig Jahre. Jetzt steh ich hier. Und gewinne.", "rieke": "Auf meinem Schiff gibt es nur eine Richtung: meine.", "rocco": "Dreihundert Punkte beim Bowling. Null Fehler am Tisch."};
+</script>
+<script>/* Kreidekönig – Queues mit eigenen Formen. drawCueArt(ctx, key, W, H) zeichnet waagerecht, Ende links, Spitze rechts. */
+(function(){
+const INK='#120d0a';
+// Form: Liste [t, Radius] (t 0 = Ende, 1 = Spitze; Radius 0..1 der halben Höhe)
+const P={
+ classic:[[0,.62],[.02,.68],[.05,.66],[.45,.5],[.47,.52],[.49,.46],[1,.24]],
+ anvil:[[0,.95],[.06,1],[.12,.92],[.14,.7],[.5,.62],[.52,.74],[.56,.74],[.58,.5],[1,.3]],
+ slim:[[0,.46],[.03,.5],[.5,.38],[.52,.42],[.54,.34],[1,.18]],
+ bulb:[[0,.5],[.03,.86],[.09,.9],[.15,.6],[.2,.58],[.25,.74],[.3,.58],[.48,.5],[.5,.56],[.52,.44],[1,.22]],
+ crystal:[[0,.4],[.04,.8],[.09,.4],[.13,.72],[.18,.42],[.22,.66],[.27,.44],[.47,.5],[.49,.6],[.51,.44],[1,.22]],
+ rocket:[[0,.5],[.02,.66],[.16,.7],[.46,.54],[.48,.56],[.5,.46],[1,.24]],
+ bamboo:[[0,.6],[.08,.58],[.09,.66],[.1,.58],[.2,.56],[.21,.64],[.22,.56],[.32,.54],[.33,.62],[.34,.54],[.47,.5],[.48,.58],[.49,.46],[.62,.4],[.63,.46],[.64,.4],[.8,.32],[.81,.38],[.82,.32],[1,.24]],
+ steam:[[0,.66],[.04,.76],[.06,.66],[.2,.62],[.21,.78],[.24,.78],[.25,.6],[.4,.56],[.41,.72],[.44,.72],[.45,.54],[.5,.5],[1,.26]],
+ laser:[[0,.4],[.02,.5],[.06,.5],[.08,.4],[.48,.36],[.5,.44],[.52,.32],[1,.16]],
+ crown:[[0,.7],[.05,.76],[.1,.64],[.46,.54],[.48,.62],[.5,.48],[1,.26]],
+ wave:[[0,.6],[.05,.7],[.1,.52],[.15,.68],[.2,.5],[.25,.66],[.3,.5],[.46,.5],[.48,.56],[.5,.44],[1,.22]],
+ blade:[[0,.56],[.03,.62],[.46,.5],[.48,.54],[.5,.44],[1,.22]],
+ twist:[[0,.56],[.04,.62],[.46,.5],[.48,.54],[.5,.44],[1,.22]],
+ neon:[[0,.58],[.03,.62],[.46,.48],[.48,.56],[.5,.42],[1,.22]]
+};
+function radiusAt(prof,t){for(let i=1;i<prof.length;i++){if(t<=prof[i][0]){const a=prof[i-1],b=prof[i],u=(t-a[0])/(b[0]-a[0]||1);return a[1]+(b[1]-a[1])*u;}}return prof[prof.length-1][1];}
+
+/* Muster für Abschnitte: (g, x0, x1, cy, h) */
+const PAT={
+ solid:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);},
+ wood:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);g.strokeStyle=a[1];g.globalAlpha=.35;g.lineWidth=1.4;for(let k=0;k<10;k++){const y=cy-h+(k+.5)*2*h/10;g.beginPath();g.moveTo(x0,y);for(let x=x0;x<=x1;x+=6)g.lineTo(x,y+Math.sin(x*0.05+k*1.7)*h*0.12);g.stroke();}g.globalAlpha=1;},
+ points:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);g.fillStyle=a[1];g.beginPath();g.moveTo(x0,cy-h);g.lineTo(x1-(x1-x0)*0.08,cy);g.lineTo(x0,cy+h);g.closePath();g.fill();g.fillStyle=a[2]||a[0];g.beginPath();g.moveTo(x0,cy-h*0.55);g.lineTo(x1-(x1-x0)*0.3,cy);g.lineTo(x0,cy+h*0.55);g.closePath();g.fill();},
+ stripes:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);g.fillStyle=a[1];const s=a[2]||14;for(let x=x0-2*h;x<x1;x+=s){g.beginPath();g.moveTo(x,cy+h);g.lineTo(x+s*0.45,cy+h);g.lineTo(x+s*0.45+2*h*0.6,cy-h);g.lineTo(x+2*h*0.6,cy-h);g.closePath();g.fill();}},
+ zebra:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);g.fillStyle=a[1];for(let x=x0;x<x1;x+=16){g.beginPath();g.moveTo(x,cy-h);g.quadraticCurveTo(x+10,cy,x+3,cy+h);g.lineTo(x+9,cy+h);g.quadraticCurveTo(x+16,cy,x+6,cy-h);g.closePath();g.fill();}},
+ carbon:(g,x0,x1,cy,h,a)=>{const s=5;for(let y=cy-h;y<cy+h;y+=s)for(let x=x0;x<x1;x+=s){g.fillStyle=(((x-x0)/s|0)+((y-cy)/s|0))%2?a[0]:a[1];g.fillRect(x,y,s,s);}},
+ metal:(g,x0,x1,cy,h,a)=>{const gr=g.createLinearGradient(0,cy-h,0,cy+h);gr.addColorStop(0,'#fafafa');gr.addColorStop(.3,a[0]);gr.addColorStop(.55,'#6a6e74');gr.addColorStop(.8,a[0]);gr.addColorStop(1,'#3a3e44');g.fillStyle=gr;g.fillRect(x0,cy-h,x1-x0,2*h);},
+ glow:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[1]||'#101418';g.fillRect(x0,cy-h,x1-x0,2*h);const gr=g.createLinearGradient(0,cy-h,0,cy+h);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(.5,a[0]);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;for(let x=x0+4;x<x1-4;x+=22)g.fillRect(x,cy-h,14,2*h);g.fillStyle='#fff';g.globalAlpha=.7;for(let x=x0+4;x<x1-4;x+=22)g.fillRect(x+2,cy-1,10,2);g.globalAlpha=1;},
+ gems:(g,x0,x1,cy,h,a)=>{const gr=g.createLinearGradient(x0,cy-h,x1,cy+h);gr.addColorStop(0,a[0]);gr.addColorStop(.5,a[1]);gr.addColorStop(1,a[0]);g.fillStyle=gr;g.fillRect(x0,cy-h,x1-x0,2*h);g.strokeStyle='rgba(255,255,255,.55)';g.lineWidth=1.2;for(let x=x0;x<x1;x+=12){g.beginPath();g.moveTo(x,cy-h);g.lineTo(x+6,cy);g.lineTo(x,cy+h);g.stroke();}},
+ flame:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);for(let k=0;k<5;k++){const y=cy-h*0.8+k*h*0.4;const gr=g.createLinearGradient(x0,0,x1,0);gr.addColorStop(0,'#ffe070');gr.addColorStop(.5,'#ff7a10');gr.addColorStop(1,'rgba(200,30,0,0)');g.fillStyle=gr;g.beginPath();g.moveTo(x0,y-h*0.2);g.quadraticCurveTo(x0+(x1-x0)*0.5,y-h*0.45,x0+(x1-x0)*(0.7+k%2*0.2),y);g.quadraticCurveTo(x0+(x1-x0)*0.5,y+h*0.25,x0,y+h*0.2);g.fill();}},
+ nodes:(g,x0,x1,cy,h,a)=>{const gr=g.createLinearGradient(x0,0,x1,0);gr.addColorStop(0,a[0]);gr.addColorStop(1,a[1]);g.fillStyle=gr;g.fillRect(x0,cy-h,x1-x0,2*h);g.strokeStyle='rgba(40,60,20,.35)';g.lineWidth=1;for(let k=0;k<5;k++){const y=cy-h+(k+.5)*2*h/5;g.beginPath();g.moveTo(x0,y);g.lineTo(x1,y);g.stroke();}},
+ dots:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);g.fillStyle=a[1];for(let k=0;k<26;k++){const x=x0+((k*53)%100)/100*(x1-x0),y=cy-h+((k*37)%100)/100*2*h;g.beginPath();g.arc(x,y,1+(k%3),0,7);g.fill();}},
+ twist:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);g.fillStyle=a[1];for(let x=x0-h;x<x1;x+=12){g.beginPath();g.moveTo(x,cy+h);g.bezierCurveTo(x+4,cy+h*0.2,x+6,cy-h*0.2,x+12,cy-h);g.lineTo(x+17,cy-h);g.bezierCurveTo(x+11,cy-h*0.2,x+9,cy+h*0.2,x+5,cy+h);g.closePath();g.fill();}},
+ crowns:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);g.fillStyle=a[1];for(let x=x0+14;x<x1-10;x+=34){const w=h*0.7,hh=h*0.6;g.beginPath();g.moveTo(x-w,cy+hh);g.lineTo(x-w,cy-hh*0.3);g.lineTo(x-w*0.5,cy+hh*0.2);g.lineTo(x,cy-hh);g.lineTo(x+w*0.5,cy+hh*0.2);g.lineTo(x+w,cy-hh*0.3);g.lineTo(x+w,cy+hh);g.closePath();g.fill();}},
+ wrap:(g,x0,x1,cy,h,a)=>{g.fillStyle=a[0];g.fillRect(x0,cy-h,x1-x0,2*h);g.strokeStyle=a[1]||'rgba(255,255,255,.18)';g.lineWidth=1;for(let x=x0;x<x1;x+=4){g.beginPath();g.moveTo(x,cy-h);g.lineTo(x+h*0.5,cy+h);g.stroke();}}
+};
+/* Queues: Form, Abschnitte [t0,t1,muster,farben], Extras, Daten */
+const CUE_ART={
+ kneipe:{name:'Kneipenqueue',shape:'classic',info:'Mittelschwer · 145 cm · Spitze 12 mm',parts:[[0,.03,'solid',['#1a1a1a']],[.03,.2,'wrap',['#2a1a10']],[.2,.47,'wood',['#d9b47a','#8a5a2a']],[.47,1,'wood',['#ecd7a8','#c0a070']]],rings:[.2,.47],ring:'#1a1a1a',tip:'#2f6fd0'},
+ pfeil:{name:'Schwarzer Pfeil',shape:'blade',info:'Mittelschwer · 147 cm · Spitze 11 mm',parts:[[0,.03,'solid',['#0c0c0c']],[.03,.22,'wrap',['#2a2a2a']],[.22,.48,'points',['#141010','#d8dce2','#141010']],[.48,1,'wood',['#e2cc9e','#b8a070']]],rings:[.03,.22,.48],ring:'#c8ccd2',tip:'#2f6fd0',fins:{t:.47,n:1,c:'#c8ccd2',len:.06,h:.32}},
+ amboss:{name:'Amboss',shape:'anvil',info:'Sehr schwer · 168 cm · Spitze 13 mm',parts:[[0,.13,'metal',['#a8aeb6']],[.13,.5,'wood',['#5a3a22','#2a1a10']],[.5,.58,'metal',['#a8aeb6']],[.58,1,'wood',['#d8c49a','#a89070']]],rings:[.13,.5,.58],ring:'#4a4e54',tip:'#3a3a3a',rivets:[.04,.09,.53]},
+ saege:{name:'Sägezahn',shape:'blade',info:'Schwer · 150 cm · Spitze 12 mm',parts:[[0,.03,'solid',['#111']],[.03,.24,'stripes',['#1a1a1a','#c01a1a',12]],[.24,.48,'solid',['#c01a1a']],[.48,1,'wood',['#ecd8aa','#c0a070']]],rings:[.24,.48],ring:'#e8e8e8',tip:'#c01a1a',teeth:{t0:.25,t1:.46,n:7,c:'#d8dce2'}},
+ spindel:{name:'Spindel',shape:'twist',info:'Leicht · 135 cm · Spitze 9 mm',parts:[[0,.04,'solid',['#123a3a']],[.04,.48,'twist',['#1a6a6a','#e09a4a']],[.48,1,'wood',['#ead9ac','#c0a878']]],rings:[.04,.48],ring:'#e09a4a',tip:'#1a6a6a'},
+ neon:{name:'Neonröhre',shape:'neon',info:'Leicht · 140 cm · Spitze 10 mm',parts:[[0,.03,'solid',['#0a0c10']],[.03,.48,'glow',['#38f0ff','#0a1a24']],[.48,1,'glow',['#ff4ad0','#1a0a18']]],rings:[.03,.18,.33,.48],ring:'#c8f4ff',tip:'#38f0ff',glowC:'#38f0ff'},
+ knochen:{name:'Knochenbrecher',shape:'bulb',info:'Schwer · 152 cm · Spitze 12 mm',parts:[[0,.15,'solid',['#ece4d0']],[.15,.3,'wrap',['#5a3a22','rgba(0,0,0,.25)']],[.3,.5,'solid',['#e4dac2']],[.5,1,'wood',['#efe2c0','#c8b890']]],rings:[.15,.3,.5],ring:'#3a2a1a',tip:'#5a3a22'},
+ harpune:{name:'Harpune',shape:'classic',info:'Mittelschwer · 150 cm · Spitze 11 mm',parts:[[0,.2,'metal',['#8a98a8']],[.2,.47,'carbon',['#22262c','#2e343a']],[.47,1,'wood',['#e6d4a6','#b8a078']]],rings:[.2,.47],ring:'#d0d6dc',tip:'#4a5a6a',tail:{c:'#8a98a8'}},
+ zebra:{name:'Zebra',shape:'wave',info:'Mittelschwer · 145 cm · Spitze 10 mm',parts:[[0,.32,'zebra',['#f4f2ee','#141414']],[.32,.48,'solid',['#141414']],[.48,1,'wood',['#f0e2bc','#c8b48a']]],rings:[.32,.48],ring:'#e8c060',tip:'#141414'},
+ kristall:{name:'Kristall',shape:'crystal',info:'Leicht · 138 cm · Spitze 9 mm',parts:[[0,.28,'gems',['#6ab8e8','#e8f8ff']],[.28,.49,'solid',['#1a3a5a']],[.49,1,'wood',['#eef0f4','#c8d0dc']]],rings:[.28,.49],ring:'#e8f8ff',tip:'#6ab8e8',gem:'#a8e4ff'},
+ rakete:{name:'Rakete',shape:'rocket',info:'Schwer · 155 cm · Spitze 12 mm',parts:[[0,.16,'solid',['#f4f2ee']],[.16,.47,'stripes',['#f4f2ee','#d02a2a',22]],[.47,1,'wood',['#ecdcb4','#c0a878']]],rings:[.16,.47],ring:'#2a2a2a',tip:'#d02a2a',fins:{t:.02,n:2,c:'#d02a2a',len:.14,h:.5},exhaust:true},
+ bambus:{name:'Bambus',shape:'bamboo',info:'Leicht · 142 cm · Spitze 10 mm',parts:[[0,.49,'nodes',['#6a9a3a','#9ac05a']],[.49,1,'nodes',['#c8d890','#e8ecb8']]],rings:[],ring:'#3a5a1a',tip:'#3a5a1a'},
+ dampf:{name:'Dampfkessel',shape:'steam',info:'Sehr schwer · 160 cm · Spitze 13 mm',parts:[[0,.06,'metal',['#c89a4a']],[.06,.2,'wood',['#6a3a1a','#3a1a08']],[.2,.25,'metal',['#c89a4a']],[.25,.4,'wood',['#7a4a22','#3a1a08']],[.4,.45,'metal',['#c89a4a']],[.45,1,'wood',['#e8d0a0','#b89868']]],rings:[],ring:'#8a6a2a',tip:'#6a3a1a',gauge:.225,rivets:[.03,.42]},
+ laser:{name:'Laserstab',shape:'laser',info:'Sehr leicht · 130 cm · Spitze 8 mm',parts:[[0,.5,'metal',['#c8ced6']],[.5,1,'metal',['#dfe3e8']]],rings:[.06,.5],ring:'#ff3a3a',tip:'#ff3a3a',beam:'#ff3a3a'},
+ feuer:{name:'Feuerstoß',shape:'classic',info:'Schwer · 150 cm · Spitze 12 mm',parts:[[0,.03,'solid',['#1a0a04']],[.03,.2,'wrap',['#2a1208']],[.2,.47,'flame',['#3a1a08']],[.47,1,'wood',['#efdfb6','#c8a878']]],rings:[.2,.47],ring:'#ffd060',tip:'#c84a1a'},
+ krone:{name:'Königsqueue',shape:'crown',info:'Mittelschwer · 148 cm · Spitze 11 mm',parts:[[0,.1,'solid',['#b88a2a']],[.1,.47,'crowns',['#111','#e8c060']],[.47,1,'wood',['#f2e6c4','#d0c098']]],rings:[.1,.47],ring:'#ffffff',tip:'#d6ab52',crownCap:true,gem:'#c01a3a'}
+};
+
+function drawCueArt(ctx,key,W,H,opt){
+  if(opt&&opt.flat){const d=CUE_ART[key],g=ctx;g.save();const X=t=>W*t;
+    d.parts.forEach(([t0,t1,pt,cols])=>PAT[pt](g,X(t0),X(t1)+1,H/2,H/2,cols));d.rings.forEach(t=>{g.fillStyle=d.ring;g.fillRect(X(t)-3,0,6,H);});
+    if(d.beam){g.fillStyle=d.beam;g.fillRect(X(.52),H/2-2,X(1)-X(.52),4);}g.fillStyle='#f6f2e8';g.fillRect(W*0.985,0,W*0.015,H);g.restore();return;}
+  const d=CUE_ART[key],prof=P[d.shape],g=ctx;g.save();g.clearRect(0,0,W,H);
+  const pad=H*0.12,x0=W*0.03+(d.exhaust?W*0.05:0)+(d.tail?W*0.03:0),x1=W*0.985,cy=H/2,R=H/2-pad;
+  const X=t=>x0+(x1-x0)*t;
+  const outline=(c)=>{c.beginPath();for(let i=0;i<=200;i++){const t=i/200;c.lineTo(X(t),cy-R*radiusAt(prof,t));}for(let i=200;i>=0;i--){const t=i/200;c.lineTo(X(t),cy+R*radiusAt(prof,t));}c.closePath();};
+  // Extras hinter dem Körper
+  if(d.exhaust){const gr=g.createLinearGradient(W*0.0,0,x0,0);gr.addColorStop(0,'rgba(255,200,40,0)');gr.addColorStop(.5,'rgba(255,140,20,.85)');gr.addColorStop(1,'#fff0a0');g.fillStyle=gr;g.beginPath();g.moveTo(x0+2,cy-R*0.4);g.quadraticCurveTo(W*0.01,cy,x0+2,cy+R*0.4);g.closePath();g.fill();}
+  if(d.fins){const t=d.fins.t,L=(x1-x0)*d.fins.len,hh=R*(d.fins.h+radiusAt(prof,t));g.fillStyle=d.fins.c;g.strokeStyle=INK;g.lineWidth=2;
+    for(const s of [-1,1]){g.beginPath();g.moveTo(X(t),cy+s*R*radiusAt(prof,t)*0.8);g.lineTo(X(t)-L*0.15,cy+s*hh*1.15);g.lineTo(X(t)+L,cy+s*R*radiusAt(prof,t+d.fins.len)*0.9);g.closePath();g.fill();g.stroke();}}
+  if(d.tail){g.fillStyle=d.tail.c;g.strokeStyle=INK;g.lineWidth=2;for(const s of [-1,1]){g.beginPath();g.moveTo(X(0.06),cy+s*R*0.4);g.lineTo(X(0)-W*0.03,cy+s*R*1.25);g.lineTo(X(0.02),cy+s*R*0.3);g.closePath();g.fill();g.stroke();}}
+  if(d.teeth){const n=d.teeth.n;g.fillStyle=d.teeth.c;g.strokeStyle=INK;g.lineWidth=1.6;for(let i=0;i<n;i++){const ta=d.teeth.t0+(d.teeth.t1-d.teeth.t0)*i/n,tb=ta+(d.teeth.t1-d.teeth.t0)/n;for(const s of [-1,1]){const ra=R*radiusAt(prof,ta),rb=R*radiusAt(prof,tb);g.beginPath();g.moveTo(X(ta),cy+s*ra*0.9);g.lineTo(X(tb),cy+s*(rb+R*0.35));g.lineTo(X(tb),cy+s*rb*0.9);g.closePath();g.fill();g.stroke();}}}
+  if(d.beam){g.strokeStyle=d.beam;g.globalAlpha=.25;g.lineWidth=R*0.9;g.beginPath();g.moveTo(X(.5),cy);g.lineTo(X(1),cy);g.stroke();g.globalAlpha=1;}
+  // Körper
+  g.save();outline(g);g.clip();
+  d.parts.forEach(([t0,t1,pt,cols])=>PAT[pt](g,X(t0),X(t1)+1,cy,R,cols));
+  d.rings.forEach(t=>{g.fillStyle=d.ring;g.fillRect(X(t)-2.5,cy-R,5,2*R);});
+  if(d.beam){g.fillStyle=d.beam;g.fillRect(X(.52),cy-1.2,X(1)-X(.52),2.4);}
+  if(d.rivets)d.rivets.forEach(t=>{for(const s of [-.5,0,.5]){g.fillStyle='#e8e8e8';g.beginPath();g.arc(X(t),cy+s*R*radiusAt(prof,t),2.2,0,7);g.fill();}});
+  if(d.gauge){const r=R*0.62;g.fillStyle='#f4f0e0';g.beginPath();g.arc(X(d.gauge),cy,r,0,7);g.fill();g.strokeStyle='#5a3a10';g.lineWidth=2;g.stroke();g.strokeStyle='#c01a1a';g.beginPath();g.moveTo(X(d.gauge),cy);g.lineTo(X(d.gauge)+r*0.6,cy-r*0.5);g.stroke();}
+  // Rundung
+  const sh=g.createLinearGradient(0,cy-R,0,cy+R);sh.addColorStop(0,'rgba(255,255,255,.45)');sh.addColorStop(.25,'rgba(255,255,255,.08)');sh.addColorStop(.6,'rgba(0,0,0,.08)');sh.addColorStop(1,'rgba(0,0,0,.5)');g.fillStyle=sh;g.fillRect(0,0,W,H);
+  g.restore();
+  // Ferrule und Pomeranze
+  const tf=X(1)-W*0.012;g.fillStyle='#f6f2e8';g.fillRect(tf,cy-R*radiusAt(prof,1),W*0.012,2*R*radiusAt(prof,1));
+  g.fillStyle=d.tip;g.fillRect(X(1)-1,cy-R*radiusAt(prof,1)*0.95,W*0.006,2*R*radiusAt(prof,1)*0.95);
+  // Kontur
+  outline(g);g.strokeStyle=INK;g.lineWidth=1.6;g.stroke();
+  // Aufsätze
+  if(d.crownCap){const x=X(0),r=R*0.75;g.fillStyle='#e8c060';g.strokeStyle=INK;g.lineWidth=1.6;g.beginPath();g.moveTo(x+4,cy-r);g.lineTo(x-r*0.9,cy-r*1.2);g.lineTo(x-r*0.5,cy-r*0.4);g.lineTo(x-r*1.1,cy);g.lineTo(x-r*0.5,cy+r*0.4);g.lineTo(x-r*0.9,cy+r*1.2);g.lineTo(x+4,cy+r);g.closePath();g.fill();g.stroke();}
+  if(d.gem){const x=d.crownCap?X(0)-R*0.3:X(0.02),r=R*0.32;g.fillStyle=d.gem;g.strokeStyle=INK;g.lineWidth=1.4;g.beginPath();g.moveTo(x,cy-r);g.lineTo(x+r*0.8,cy);g.lineTo(x,cy+r);g.lineTo(x-r*0.8,cy);g.closePath();g.fill();g.stroke();g.fillStyle='rgba(255,255,255,.6)';g.fillRect(x-r*0.2,cy-r*0.5,r*0.3,r*0.3);}
+  if(d.glowC){g.shadowColor=d.glowC;g.shadowBlur=14;outline(g);g.strokeStyle=d.glowC;g.globalAlpha=.5;g.lineWidth=1.2;g.stroke();g.globalAlpha=1;g.shadowBlur=0;}
+  g.restore();
+}
+window.KK_CUEART={drawCueArt,CUE_ART};
+})();
 </script>
 <script src="three.min.js"></script>
 <script>
@@ -976,24 +1084,29 @@ const cueRoot=new THREE.Group();scene.add(cueRoot);
 })();
 /* Queues: eigene Designs, jede mit eigenen Werten (1–10) */
 const CUES={
- ahorn:{name:'Kneipenqueue',desc:'Ahorn natur. Solide, aber nichts Besonderes.',need:0,st:{kraft:4,effet:4,praez:4,kreide:4},shaft:'#ecd7a8',fore:'#d9b47a',sleeve:'#2a1a10',wrap:'none',pat:'grain',acc:'#8a5a2a',ring:'#1a1a1a',tip:'#2f6fd0'},
- ebenholz:{name:'Schwarzer Pfeil',desc:'Ebenholz mit Silberringen. Ruhig in der Hand.',need:0,st:{kraft:5,effet:4,praez:5,kreide:4},shaft:'#e2cc9e',fore:'#141010',sleeve:'#141010',wrap:'linen',wrapc:'#3a3a3a',pat:'points',acc:'#d8dce2',ring:'#c8ccd2',tip:'#2f6fd0'},
- blau:{name:'Blitz',desc:'Blau lackiert mit Blitzstreifen. Viel Wumms.',need:1,st:{kraft:7,effet:3,praez:4,kreide:4},shaft:'#efe0bc',fore:'#1d3c8c',sleeve:'#0f1f4a',wrap:'linen',wrapc:'#111',pat:'bolt',acc:'#f2f2f2',ring:'#d6ab52',tip:'#1a4fb8'},
- rot:{name:'Kirschblüte',desc:'Kirschholz mit hellen Spitzen. Gutes Gefühl für Effet.',need:2,st:{kraft:5,effet:6,praez:5,kreide:5},shaft:'#e9d2a2',fore:'#7a1418',sleeve:'#3a0a0c',wrap:'linen',wrapc:'#1a1a1a',pat:'points',acc:'#f0dcae',ring:'#e8e2d0',tip:'#2f6fd0'},
- olive:{name:'Olivenzweig',desc:'Olivenholz mit Lederwicklung. Präzise.',need:3,st:{kraft:5,effet:5,praez:7,kreide:5},shaft:'#e6d4a6',fore:'#8a7a3a',sleeve:'#3a3418',wrap:'leather',wrapc:'#5a3418',pat:'grain',acc:'#3a2a10',ring:'#2a2a2a',tip:'#2f6fd0'},
- carbon:{name:'Carbon R',desc:'Kohlefaser mit rotem Ring. Hart und schnell.',need:4,st:{kraft:8,effet:5,praez:6,kreide:5},shaft:'#2a2a2c',fore:'#1a1a1c',sleeve:'#0e0e10',wrap:'leather',wrapc:'#1e1e1e',pat:'carbon',acc:'#3a3a3e',ring:'#d02a2a',tip:'#d02a2a'},
- perlmutt:{name:'Perlmutt',desc:'Schimmernd mit blauen Rauten. Effet-Spezialist.',need:5,st:{kraft:5,effet:8,praez:6,kreide:6},shaft:'#f2ead8',fore:'#e8e2d6',sleeve:'#c8d0d8',wrap:'linen',wrapc:'#2a3a5a',pat:'diamonds',acc:'#3a8ad0',ring:'#8fd0e0',tip:'#2f6fd0'},
- jade:{name:'Jadedrache',desc:'Grüner Lack mit goldenen Spitzen.',need:6,st:{kraft:6,effet:7,praez:7,kreide:6},shaft:'#ead9ac',fore:'#1f6b4f',sleeve:'#0e3a2a',wrap:'linen',wrapc:'#0a1a12',pat:'points',acc:'#e0b44a',ring:'#d6ab52',tip:'#1f8a5a'},
- bernstein:{name:'Feuerstoß',desc:'Bernstein mit Flammen. Kraftvoll und zäh.',need:8,st:{kraft:8,effet:6,praez:6,kreide:7},shaft:'#efdfb6',fore:'#a8661a',sleeve:'#3a1a08',wrap:'leather',wrapc:'#2a1208',pat:'flames',acc:'#ffd060',ring:'#2a1a0a',tip:'#c84a1a'},
- nacht:{name:'Mitternacht',desc:'Nachtblau mit Sternen. Sehr genau.',need:10,st:{kraft:7,effet:8,praez:8,kreide:7},shaft:'#e4d8b6',fore:'#101830',sleeve:'#070b18',wrap:'linen',wrapc:'#1a2440',pat:'stars',acc:'#cfd8ff',ring:'#9ab0ff',tip:'#3a5ad0'},
- bordeaux:{name:'Bordeaux Royal',desc:'Weinrot mit Goldrauten und Goldwicklung.',need:12,st:{kraft:8,effet:8,praez:8,kreide:8},shaft:'#ead6aa',fore:'#3a0a12',sleeve:'#24060c',wrap:'leather',wrapc:'#b88a2a',pat:'diamonds',acc:'#e0b44a',ring:'#d6ab52',tip:'#7a1a2a'},
- krone:{name:'Königsqueue',desc:'Schwarz-Gold mit Kronen. Das Beste, was es gibt.',need:16,st:{kraft:10,effet:9,praez:9,kreide:9},shaft:'#f2e6c4',fore:'#111',sleeve:'#b88a2a',wrap:'leather',wrapc:'#0c0c0c',pat:'crown',acc:'#e8c060',ring:'#ffffff',tip:'#d6ab52'}};
+ kneipe:{need:0,st:{kraft:4,effet:4,praez:4,kreide:4},desc:'Ahorn natur. Solide, aber nichts Besonderes.'},
+ pfeil:{need:0,st:{kraft:5,effet:4,praez:6,kreide:4},desc:'Ebenholz mit Silberspitzen. Ruhig in der Hand.'},
+ spindel:{need:1,st:{kraft:3,effet:7,praez:5,kreide:5},desc:'Dünn und gedreht. Viel Gefühl für Effet.'},
+ zebra:{need:1,st:{kraft:5,effet:5,praez:5,kreide:6},desc:'Gewellter Griff mit Zebrastreifen. Ausgeglichen.'},
+ bambus:{need:2,st:{kraft:4,effet:6,praez:6,kreide:6},desc:'Leicht und biegsam. Gute Kontrolle.'},
+ knochen:{need:3,st:{kraft:7,effet:3,praez:4,kreide:6},desc:'Dicker Knauf, harter Stoß. Für grobe Hände.'},
+ harpune:{need:4,st:{kraft:6,effet:5,praez:7,kreide:5},desc:'Carbon und Stahl mit Schwanzflossen. Trifft, wo du hinzielst.'},
+ neon:{need:5,st:{kraft:5,effet:7,praez:6,kreide:6},desc:'Leuchtende Röhre. Schick und dreht schön.'},
+ saege:{need:6,st:{kraft:8,effet:4,praez:5,kreide:6},desc:'Mit Zacken am Griff. Viel Kraft.'},
+ kristall:{need:7,st:{kraft:4,effet:8,praez:8,kreide:6},desc:'Facettiert wie Eis. Präzise und mit viel Effet.'},
+ amboss:{need:8,st:{kraft:10,effet:3,praez:5,kreide:7},desc:'Sehr schwer, Metallkappen. Der härteste Stoß im Spiel.'},
+ rakete:{need:9,st:{kraft:9,effet:5,praez:5,kreide:6},desc:'Mit Flossen und Feuerstrahl. Startet durch.'},
+ feuer:{need:10,st:{kraft:8,effet:6,praez:6,kreide:7},desc:'Flammen am Griff. Kraftvoll und zäh.'},
+ dampf:{need:12,st:{kraft:9,effet:6,praez:7,kreide:8},desc:'Messing, Nieten und Druckanzeige. Schwer, aber genau.'},
+ laser:{need:14,st:{kraft:6,effet:9,praez:9,kreide:7},desc:'Chrom mit Lichtstrahl. Der genaueste Stoß.'},
+ krone:{need:16,st:{kraft:9,effet:9,praez:9,kreide:9},desc:'Schwarz-Gold mit Krone. Das Beste, was es gibt.'}};
+Object.keys(CUES).forEach(k=>{const a=KK_CUEART.CUE_ART[k];CUES[k].name=a.name;CUES[k].info=a.info;CUES[k].ring=a.ring;CUES[k].tip=a.tip;});
 const CUE_KEYS=Object.keys(CUES);
 function cueFree(k){return Object.keys(SAVE.cups).length>=(CUES[k]||{need:99}).need;}
-function charCue(c){const si=SALOONS.findIndex(sl=>sl.chars.includes(c));if(si<0)return 'ahorn';const top=Math.min(CUE_KEYS.length-1,Math.floor(si*0.7)+(c.boss?2:0));return CUE_KEYS[Math.max(0,top-(hashStr(c.id)%3))];}
-function myCue(){return cueFree(OPTS.cue)?OPTS.cue:'ahorn';}
+function charCue(c){const si=SALOONS.findIndex(sl=>sl.chars.includes(c));if(si<0)return 'kneipe';const top=Math.min(CUE_KEYS.length-1,Math.floor(si*0.7)+(c.boss?2:0));return CUE_KEYS[Math.max(0,top-(hashStr(c.id)%3))];}
+function myCue(){return CUES[OPTS.cue]&&cueFree(OPTS.cue)?OPTS.cue:'kneipe';}
 function cueKeyFor(pi){return (M&&!M.practice&&pi===1&&M.opp&&!M.opp.human)?(M.opp.cue||charCue(M.opp)):myCue();}
-function cueStats(pi){const st=(CUES[cueKeyFor(pi)]||CUES.ahorn).st;
+function cueStats(pi){const st=(CUES[cueKeyFor(pi)]||CUES.kneipe).st;
   return {kraft:0.85+0.03*st.kraft, effet:0.75+0.055*st.effet, miscue:1.5-0.1*st.praez, preview:0.7+0.08*st.praez, wear:1.5-0.1*st.kreide};}
 /* Zeichnet den Unterteil (Griff) als waagerechten Streifen: x = von der Verbindung (links) zum Ende (rechts) */
 function drawButtStrip(g,W,H,d){
@@ -1023,29 +1136,15 @@ function drawButtStrip(g,W,H,d){
   g.fillStyle='#0c0c0c';g.fillRect(W*E,0,W*(1-E),H);
 }
 /* Seitenansicht der ganzen Queue für Menüs */
-function drawCue2D(cv,key){
-  const d=CUES[key],g=cv.getContext('2d'),W=cv.width,H=cv.height;g.clearRect(0,0,W,H);
-  const cy=H/2,bw=W*0.48,bx=W*0.02,thB=H*0.62,thJ=H*0.4,thT=H*0.24;
-  // Griff
-  const strip=cvs(512,64),sg2=strip.getContext('2d');drawButtStrip(sg2,512,64,d);
-  g.save();g.beginPath();g.moveTo(bx,cy-thB/2);g.lineTo(bx+bw,cy-thJ/2);g.lineTo(bx+bw,cy+thJ/2);g.lineTo(bx,cy+thB/2);g.closePath();g.clip();
-  g.translate(bx+bw,0);g.scale(-1,1);g.drawImage(strip,0,cy-thB/2,bw,thB);g.restore();
-  // Schaft
-  const sx=bx+bw,sw=W*0.47;const gr=g.createLinearGradient(0,cy-thJ/2,0,cy+thJ/2);gr.addColorStop(0,d.shaft);gr.addColorStop(1,d.shaft);
-  g.fillStyle=d.shaft;g.beginPath();g.moveTo(sx,cy-thJ/2);g.lineTo(sx+sw,cy-thT/2);g.lineTo(sx+sw,cy+thT/2);g.lineTo(sx,cy+thJ/2);g.closePath();g.fill();
-  g.fillStyle=d.ring;g.fillRect(sx-2,cy-thJ/2-1,5,thJ+2);
-  g.fillStyle='#faf7ef';g.fillRect(sx+sw,cy-thT/2,W*0.012,thT);
-  g.fillStyle=d.tip;g.fillRect(sx+sw+W*0.012,cy-thT/2*0.95,W*0.006,thT*0.95);
-  // Rundung und Glanz
-  const sh=g.createLinearGradient(0,cy-thB/2,0,cy+thB/2);sh.addColorStop(0,'rgba(255,255,255,.35)');sh.addColorStop(.35,'rgba(255,255,255,.05)');sh.addColorStop(.7,'rgba(0,0,0,.1)');sh.addColorStop(1,'rgba(0,0,0,.45)');
-  g.globalCompositeOperation='source-atop';g.fillStyle=sh;g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over';
-}
+function drawCue2D(cv,key){KK_CUEART.drawCueArt(cv.getContext('2d'),key,cv.width,cv.height);}
 const cueTex={};
 let cueNow='';
-function applyCue(key){key=key||myCue();if(key===cueNow)return;cueNow=key;const c=CUES[key]||CUES.ahorn,p=cueRoot.userData.parts;
-  p.shaft.material.color.set(c.shaft);
-  if(!cueTex[key]){const cv=cvs(128,1024),g=cv.getContext('2d');g.save();g.translate(128,0);g.rotate(Math.PI/2);drawButtStrip(g,1024,128,c);g.restore();cueTex[key]=texFrom(cv);}
-  p.butt.material.map=cueTex[key];p.butt.material.color.set(0xffffff);p.butt.material.needsUpdate=true;p.ring.material.color.set(c.ring);}
+function applyCue(key){key=key||myCue();if(key===cueNow)return;cueNow=key;const c=CUES[key]||CUES.kneipe,p=cueRoot.userData.parts;
+  if(!cueTex[key]){const cv=cvs(128,2048),g=cv.getContext('2d');g.save();g.translate(0,2048);g.rotate(-Math.PI/2);KK_CUEART.drawCueArt(g,key,2048,128,{flat:true});g.restore();
+    const tb=texFrom(cv);tb.repeat.set(1,0.47);tb.offset.set(0,0);const ts=tb.clone();ts.needsUpdate=true;ts.repeat.set(1,0.53);ts.offset.set(0,0.47);cueTex[key]=[tb,ts];}
+  p.butt.material.map=cueTex[key][0];p.butt.material.color.set(0xffffff);p.butt.material.needsUpdate=true;
+  p.shaft.material.map=cueTex[key][1];p.shaft.material.color.set(0xffffff);p.shaft.material.needsUpdate=true;
+  p.ring.material.color.set(c.ring);cueRoot.userData.tip.material.color.set(c.tip);}
 applyCue();
 const aimGroup=new THREE.Group();scene.add(aimGroup);
 const chevGeo=(function(){const w=R*0.95,s=new THREE.Shape();s.moveTo(-0.010,-w);s.lineTo(0.004,0);s.lineTo(-0.010,w);s.lineTo(-0.003,w);s.lineTo(0.011,0);s.lineTo(-0.003,-w);s.closePath();return new THREE.ShapeGeometry(s);})();
@@ -1315,7 +1414,7 @@ function matchOver(w,why){
   if(M.opp.quick||M.opp.human){const cfg=M.cfg;
     const title=M.twoP?(w===0?'Spieler 1 gewinnt':'Spieler 2 gewinnt'):(w===0?'Sieg':'Niederlage');
     modal(`<h2>${title}</h2><p>${why}</p><p class="q">Endstand ${M.score[0]} : ${M.score[1]}</p><div class="btnrow"><button class="btn primary" id="mRe">Revanche</button><button class="btn" id="mBack">Hauptmenü</button></div>`);
-    document.getElementById('mRe').onclick=()=>{closeModal();newMatch(cfg);};
+    document.getElementById('mRe').onclick=()=>{closeModal();pickCue(()=>newMatch(cfg),'Revanche: Queue wählen');};
     document.getElementById('mBack').onclick=()=>{closeModal();M=null;showMain();};return;}
   const opp=M.opp, sl=M.sal, si=SALOONS.indexOf(sl);
   let extra='';
@@ -1332,7 +1431,7 @@ function matchOver(w,why){
   modal(`<h2>${w===0?'Sieg':'Niederlage'}</h2><p>${why}</p><div class="mfig"><img src="${bodyImg(opp)}" style="${figStyle(opp)}" alt=""><p class="q">${opp.name}: „${line}“</p></div>${extra}<p class="q">Endstand ${M.score[0]} : ${M.score[1]}</p>
    <div class="btnrow"><button class="btn primary" id="mBack">Zurück in den Saloon</button><button class="btn" id="mRe">Revanche</button></div>`);
   document.getElementById('mBack').onclick=()=>{closeModal();enterRoom(sl,{after:{opp,won:w===0,line}});};
-  document.getElementById('mRe').onclick=()=>{closeModal();newMatch({sal:sl,opp,mode:sl.mode,race:sl.race});};
+  document.getElementById('mRe').onclick=()=>{closeModal();pickCue(()=>newMatch({sal:sl,opp,mode:sl.mode,race:sl.race}),'Revanche: Queue wählen');};
 }
 
 /* --------- KI --------- */
@@ -1819,7 +1918,7 @@ function showMain(){
     <button class="tile" id="mmQuick">${ICON.quick}<b>Schnelles Spiel</b><span>Regeln, Gegner, Tisch frei wählen</span></button>
     <button class="tile" id="mmTwo">${ICON.two}<b>Zwei Spieler</b><span>Abwechselnd an einem Handy</span></button>
     <button class="tile" id="mmPractice">${ICON.practice}<b>Training</b><span>Allein am Tisch</span></button>
-    <button class="tile" id="mmCues">${ICON.cues}<b>Queues</b><span>${CUES[myCue()].name}</span><canvas class="cuemini" id="mmCueMini" width="480" height="40"></canvas></button>
+    <button class="tile" id="mmCues">${ICON.cues}<b>Queues</b><span>${CUES[myCue()].name}</span><canvas class="cuemini" id="mmCueMini" width="560" height="40"></canvas></button>
     <button class="tile small" id="mmOpts">${ICON.opts}<b>Optionen</b></button>
     <button class="tile small" id="mmHelp">${ICON.help}<b>Hilfe</b></button>
    </nav>`;
@@ -1882,7 +1981,7 @@ function showCues(){
   const intro=document.createElement('p');intro.className='sub';intro.textContent=`Jede Queue spielt sich anders. Neue Queues gibt es für Pokale – du hast ${cups}.`;menuWrap.appendChild(intro);
   const list=document.createElement('div');list.className='cuelist';menuWrap.appendChild(list);
   CUE_KEYS.forEach(k=>{const d=CUES[k],free=cueFree(k),card=document.createElement('div');card.className='cuecard'+(k===cur?' sel':'')+(free?'':' lock');
-    card.innerHTML=`<div class="cuehead"><b>${d.name}</b><small>${k===cur?'Ausgewählt':free?'Frei':'🔒 ab '+d.need+' Pokalen'}</small></div><canvas width="960" height="80"></canvas><p>${d.desc}</p><div class="stats">${statRows(d.st,k===cur?null:CUES[cur].st)}</div>`+
+    card.innerHTML=`<div class="cuehead"><b>${d.name}</b><small>${k===cur?'Ausgewählt':free?'Frei':'🔒 ab '+d.need+' Pokalen'}</small></div><canvas width="1120" height="80"></canvas><p>${d.info}<br>${d.desc}</p><div class="stats">${statRows(d.st,k===cur?null:CUES[cur].st)}</div>`+
       (free&&k!==cur?`<div class="btnrow"><button class="btn primary">Diese Queue nehmen</button></div>`:'');
     list.appendChild(card);drawCue2D(card.querySelector('canvas'),k);
     const b=card.querySelector('button');if(b)b.onclick=()=>{audioOn();OPTS.cue=k;persist();cueNow='';applyCue();SND.chalk();showCues();};});
@@ -2028,7 +2127,20 @@ function resumeOrMain(){
 }
 window.addEventListener('pagehide',()=>{if(M&&(phase==='aim'||phase==='place'||phase==='ai'))saveResume();else persist();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(M&&(phase==='aim'||phase==='place'||phase==='ai'))saveResume();else persist();}});
-function startGame(o){
+function pickCue(go,title){
+  const cur=myCue();let sel=cur;
+  const rows=CUE_KEYS.map(k=>{const d=CUES[k],free=cueFree(k);
+    return `<button class="pick${k===sel?' on':''}${free?'':' lock'}" data-k="${k}" ${free?'':'disabled'}><span class="ph"><b>${d.name}</b><small>${free?d.info:'🔒 ab '+d.need+' Pokalen'}</small></span><canvas width="1120" height="80"></canvas><span class="stats">${statRows(d.st)}</span></button>`;}).join('');
+  modal(`<h2>${title||'Queue wählen'}</h2><div class="picklist">${rows}</div><div class="btnrow"><button class="btn primary" id="pkGo">Mit dieser Queue spielen</button><button class="btn ghost" id="pkBack">Zurück</button></div>`);
+  const box=document.getElementById('mbox');
+  box.querySelectorAll('.pick').forEach(b=>{drawCue2D(b.querySelector('canvas'),b.dataset.k);
+    b.onclick=()=>{if(b.disabled)return;sel=b.dataset.k;box.querySelectorAll('.pick').forEach(x=>x.classList.toggle('on',x===b));audioOn();SND.click(1.5);};});
+  {const on=box.querySelector('.pick.on');if(on)setTimeout(()=>on.scrollIntoView({block:'center'}),30);}
+  document.getElementById('pkGo').onclick=()=>{OPTS.cue=sel;persist();cueNow='';applyCue();SND.chalk();closeModal();go();};
+  document.getElementById('pkBack').onclick=closeModal;
+}
+function startGame(o,picked){
+  if(!picked&&!o.resume){return pickCue(()=>startGame(o,true));}
   {const si=SALOONS.indexOf(o.sal);musicSet(si>=12?3:si>=0&&si%2?2:1);setTimeout(musicUpdate,50);}
   clearInterval(ambientT);scrCity.hidden=true;scrRoom.hidden=true;scrMenu.hidden=true;hud.hidden=false;
   applyTheme(o.sal);applyTableStyle(o.opp&&o.opp.face);viewMode='top';viewBtn.textContent='3D';
