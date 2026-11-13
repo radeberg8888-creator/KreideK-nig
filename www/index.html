@@ -268,6 +268,16 @@ h2{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0;color:va
 .plate.on{animation:kkTurn 2.2s ease-in-out infinite}
 @keyframes kkTurn{0%,100%{box-shadow:0 0 6px rgba(214,171,82,.3),inset 0 1px 3px rgba(0,0,0,.8)}50%{box-shadow:0 0 14px rgba(214,171,82,.55),inset 0 1px 3px rgba(0,0,0,.8)}}
 .score{text-shadow:0 0 10px rgba(214,171,82,.35)}
+
+.tbracket{display:flex;gap:10px;overflow-x:auto;padding:6px 2px 12px;-webkit-overflow-scrolling:touch}
+.tround{flex:0 0 auto;min-width:150px;display:flex;flex-direction:column;justify-content:space-around;gap:8px}
+.tround h4{margin:0 0 2px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#d6ab52)}
+.tm{border:1px solid #4a3e2a;border-radius:10px;background:rgba(0,0,0,.35);overflow:hidden}
+.tp{display:flex;align-items:center;gap:7px;padding:5px 8px;font-size:13px;white-space:nowrap}
+.tp+.tp{border-top:1px solid #3a3022}
+.tp img,.tp i{width:22px;height:22px;border-radius:50%;object-fit:cover;flex:0 0 22px;background:#333}
+.tp.win{color:#ffe7a8;font-weight:700}.tp.lose{opacity:.45;text-decoration:line-through}
+.tp.me span{color:#7dffb0}
 </style>
 </head>
 <body>
@@ -2068,6 +2078,10 @@ function frameWon(w,why){
   },900);
 }
 function matchOver(w,why){
+  if(M.opp.tour){tourResult(w===0);const T=curTour();const champ=T&&T.done&&T.players[T.champ].me;
+    const go=()=>{modal(`<h2>${champ?'Turniersieg!':w===0?'Weiter!':'Ausgeschieden'}</h2><p>${why}</p><p class="q">Endstand ${M.score[0]} : ${M.score[1]}</p><div class="btnrow"><button class="btn primary" id="mT">Zum Turnierbaum</button></div>`);
+      document.getElementById('mT').onclick=()=>{closeModal();M=null;showMain();showTour();};};
+    if(champ)setTimeout(()=>celebrate(go),700);else go();return;}
   if(M.opp.quick||M.opp.human){const cfg=M.cfg;
     const title=M.twoP?(w===0?'Spieler 1 gewinnt':'Spieler 2 gewinnt'):(w===0?'Sieg':'Niederlage');
     modal(`<h2>${title}</h2><p>${why}</p><p class="q">Endstand ${M.score[0]} : ${M.score[1]}</p><div class="btnrow"><button class="btn primary" id="mRe">Revanche</button><button class="btn" id="mBack">Hauptmenü</button></div>`);
@@ -2791,17 +2805,74 @@ function showSetup(two){
   pageHead(two?'Zwei Spieler':'Schnelles Spiel');
   const rerender=()=>showSetup(two);
   menuWrap.appendChild(chipRow('Regeln',Object.keys(RULES).map(k=>[k,RULES[k].name]),QS.mode,v=>{QS.mode=v;rerender();}));
-  if(!two)menuWrap.appendChild(chipRow('Gegner',QLV.map((q,i)=>[i,`${q[0]} · ${q[1]}`,q[3]]),QS.lvl,v=>{QS.lvl=v;rerender();}));
+  if(!two)menuWrap.appendChild(chipRow('Spielart',[['single','Einzelspiel'],['tour','Turnier']],QS.kind||'single',v=>{QS.kind=v;rerender();}));
+  const tour=!two&&QS.kind==='tour';
+  if(tour){menuWrap.appendChild(chipRow('Teilnehmer',[[4,'4'],[8,'8'],[16,'16'],[32,'32']],QS.size||8,v=>{QS.size=v;rerender();}));
+    menuWrap.appendChild(chipRow('Feld',[['easy','Leicht'],['mid','Mittel'],['hard','Stark'],['mix','Gemischt']],QS.field||'mix',v=>{QS.field=v;rerender();}));
+    if(prof()&&prof().tour&&!prof().tour.done){const r=document.createElement('div');r.className='btnrow';r.innerHTML='<button class="btn" id="tCont">Laufendes Turnier fortsetzen</button>';menuWrap.appendChild(r);
+      setTimeout(()=>{const b=document.getElementById('tCont');if(b)b.onclick=()=>{audioOn();showTour();};},0);}}
+  else if(!two)menuWrap.appendChild(chipRow('Gegner',QLV.map((q,i)=>[i,`${q[0]} · ${q[1]}`,q[3]]),QS.lvl,v=>{QS.lvl=v;rerender();}));
   menuWrap.appendChild(chipRow('Gewinnframes',[[1,'1 Frame'],[2,'Bis 2'],[3,'Bis 3'],[5,'Bis 5']],QS.race,v=>{QS.race=v;rerender();}));
   menuWrap.appendChild(chipRow('Saloon',SALOONS.map((sl,i)=>[i,sl.name,sl.cloth]),QS.room,v=>{QS.room=v;applyTheme(SALOONS[v]);rerender();}));
   applyTheme(SALOONS[QS.room]);
   const go=document.createElement('div');go.className='btnrow';go.innerHTML='<button class="btn primary" id="qGo">Anstoßen</button>';menuWrap.appendChild(go);
+  if(tour)document.getElementById('qGo').textContent='Turnier starten';
   document.getElementById('qGo').onclick=()=>{audioOn();
+    if(tour){newTour(QS.size||8,QS.field||'mix',QS.mode,QS.race,QS.room);return;}
     const sal=Object.assign({},SALOONS[QS.room],{guide:OPTS.aimHelp?1:0});
     const q=QLV[QS.lvl];
     const opp=two?{id:'p2',human:true,name:'Spieler 2',col:'#7fa0d0'}:{id:'quick'+QS.lvl,quick:true,name:q[0],nick:q[1],col:q[3],skill:q[2],face:q[4],intro:pick(LINES.accept)};
     startGame({sal,opp,mode:QS.mode,race:QS.race});};
 }
+/* ================== Turnier ================== */
+const RNAME={2:'Finale',4:'Halbfinale',8:'Viertelfinale',16:'Achtelfinale',32:'Sechzehntelfinale'};
+function tourPool(field){const all=[];SALOONS.forEach((sl,si)=>sl.chars.forEach(c=>all.push({c,si})));
+  const f={easy:x=>x.si<11,mid:x=>x.si>=8&&x.si<22,hard:x=>x.si>=18,mix:()=>true}[field]||(()=>true);
+  return all.filter(f);}
+function newTour(size,field,mode,race,room){
+  let pool=tourPool(field).slice();for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const me=prof()?SAVE.current:'Du';
+  const pl=[{name:me,me:1}].concat(pool.slice(0,size-1).map(x=>({id:x.c.id,name:x.c.name,nick:x.c.nick,col:x.c.col,skill:Math.min(0.96,x.c.skill*(x.c.boss?1:0.97)),face:x.c.face,intro:x.c.intro})));
+  for(let i=pl.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pl[i],pl[j]]=[pl[j],pl[i]];}
+  const T={mode,race,room,size,players:pl,rounds:[pl.map((_,i)=>i)],res:[[]],done:false};
+  if(prof())prof().tour=T;window.TOUR=T;persist();showTour();}
+function curTour(){return (prof()&&prof().tour)||window.TOUR;}
+function tourMyMatch(T){const r=T.rounds.length-1,ids=T.rounds[r];for(let m=0;m<ids.length/2;m++){if(T.res[r][m]!=null)continue;const a=ids[2*m],b=ids[2*m+1];if(T.players[a].me||T.players[b].me)return {r,m,a,b};}return null;}
+function tourSimRound(T){const r=T.rounds.length-1,ids=T.rounds[r];
+  for(let m=0;m<ids.length/2;m++){if(T.res[r][m]!=null)continue;const a=T.players[ids[2*m]],b=T.players[ids[2*m+1]];if(a.me||b.me)continue;
+    const p=1/(1+Math.exp(-(a.skill-b.skill)*9));T.res[r][m]=Math.random()<p?0:1;}
+  if(T.res[r].filter(x=>x!=null).length===ids.length/2){if(ids.length===2){T.done=true;T.champ=ids[T.res[r][0]];}
+    else{const nx=[];for(let k=0;k<ids.length/2;k++)nx.push(ids[2*k+T.res[r][k]]);T.rounds.push(nx);T.res.push([]);}}}
+function showTour(){const T=curTour();if(!T)return showSetup(false);
+  if(phase!=='menu')menuBackdrop();
+  pageHead('Turnier · '+RULES[T.mode].name);
+  const meIdx=T.players.findIndex(p=>p.me);
+  const alive=T.rounds[T.rounds.length-1].includes(meIdx)&&!(T.out);
+  const info=document.createElement('p');info.className='sub';
+  info.textContent=T.done?(T.champ===meIdx?'Du hast das Turnier gewonnen!':`Turniersieger: ${T.players[T.champ].name}`):alive?`${RNAME[T.rounds[T.rounds.length-1].length]||'Runde'} · ${T.size} Teilnehmer · bis ${T.race}`:'Du bist ausgeschieden.';
+  menuWrap.appendChild(info);
+  const box=document.createElement('div');box.className='tbracket';
+  T.rounds.forEach((ids,r)=>{const col=document.createElement('div');col.className='tround';col.innerHTML=`<h4>${RNAME[ids.length]||'Runde '+(r+1)}</h4>`;
+    for(let m=0;m<ids.length/2;m++){const a=T.players[ids[2*m]],b=T.players[ids[2*m+1]],w=T.res[r][m];
+      const row=(p,i)=>`<div class="tp${w===i?' win':w!=null?' lose':''}${p.me?' me':''}">${p.face&&window.KK_FACE&&KK_FACE[p.face]?`<img src="${KK_FACE[p.face]}">`:'<i></i>'}<span>${p.name}</span></div>`;
+      const d=document.createElement('div');d.className='tm';d.innerHTML=row(a,0)+row(b,1);col.appendChild(d);}
+    box.appendChild(col);});
+  if(T.done){const col=document.createElement('div');col.className='tround';const c=T.players[T.champ];col.innerHTML=`<h4>Sieger</h4><div class="tm"><div class="tp win${c.me?' me':''}">🏆 <span>${c.name}</span></div></div>`;box.appendChild(col);}
+  menuWrap.appendChild(box);
+  const row=document.createElement('div');row.className='btnrow';
+  const mm=!T.done&&alive?tourMyMatch(T):null;
+  if(mm){const o=T.players[mm.a].me?T.players[mm.b]:T.players[mm.a];row.innerHTML=`<button class="btn primary" id="tPlay">Spielen gegen ${o.name}</button>`;}
+  else if(!T.done){row.innerHTML='<button class="btn primary" id="tSim">Turnier zu Ende ansehen</button>';}
+  row.innerHTML+='<button class="btn" id="tNew">Neues Turnier</button>';menuWrap.appendChild(row);
+  const p=document.getElementById('tPlay');if(p)p.onclick=()=>{audioOn();const o=T.players[mm.a].me?T.players[mm.b]:T.players[mm.a];
+    const sal=Object.assign({},SALOONS[T.room||0],{guide:OPTS.aimHelp?1:0});
+    startGame({sal,opp:Object.assign({quick:true,tour:true},o),mode:T.mode,race:T.race});};
+  const s=document.getElementById('tSim');if(s)s.onclick=()=>{while(!T.done)tourSimRound(T);persist();showTour();};
+  document.getElementById('tNew').onclick=()=>{if(prof())delete prof().tour;window.TOUR=null;persist();QS.kind='tour';showSetup(false);};
+}
+function tourResult(won){const T=curTour();if(!T)return;const mm=tourMyMatch(T);if(!mm)return;
+  const meFirst=T.players[mm.a].me;T.res[mm.r][mm.m]=won?(meFirst?0:1):(meFirst?1:0);if(!won)T.out=1;
+  tourSimRound(T);persist();}
 function statRows(st,cmp){const L=[['kraft','Kraft'],['effet','Effet'],['praez','Präzision'],['kreide','Kreide']];
   return L.map(([k,n])=>{let bar='';for(let i=1;i<=10;i++){const on=i<=st[k],up=cmp&&on&&i>cmp[k];bar+=`<i class="${up?'up':on?'on':''}"></i>`;}return `<span>${n}</span><span class="bar">${bar}</span><span class="num">${st[k]}</span>`;}).join('');}
 function showCues(){
@@ -2943,7 +3014,7 @@ function saveResume(){
   const p=prof();if(!p||!M)return;
   const o=M.opp;
   p.resume={loc:'match',salId:M.sal.id,guide:M.sal.guide,practice:M.practice,mode:M.mode,race:M.race,
-    opp:o?(o.quick||o.human?{id:o.id,quick:o.quick,human:o.human,name:o.name,nick:o.nick,col:o.col,skill:o.skill,face:o.face,intro:o.intro}:{ref:o.id}):null,
+    opp:o?(o.quick||o.human?{id:o.id,quick:o.quick,tour:o.tour,human:o.human,name:o.name,nick:o.nick,col:o.col,skill:o.skill,face:o.face,intro:o.intro}:{ref:o.id}):null,
     score:M.score.slice(),breaker:M.breaker,turn:M.turn,groups:M.groups.slice(),visits:M.visits,isBreak:M.isBreak,bih:Object.assign({},M.bih),frame:M.frame,
     sn:M.sn?JSON.parse(JSON.stringify(M.sn)):null,chalk:chalkLv.slice(),theta:aim.theta,
     balls:BALLS.map(b=>({id:b.id,x:+b.x.toFixed(5),z:+b.z.toFixed(5),s:b.sunk?1:0}))};
