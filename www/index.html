@@ -1901,6 +1901,7 @@ function respot(b){
 let cueAnim=null;
 function doShot(theta,power,sx,sy,who,quick){
   audioOn();
+  if(isSnk(M.mode))M.pre={balls:BALLS.map(b=>({id:b.id,x:b.x,z:b.z,sunk:b.sunk})),on:M.sn.on,turn:M.turn,bih:M.bih};
   const pi=M.practice?0:who;
   const CS=cueStats(M.practice?0:who),isAI=!M.practice&&who===1&&M.opp&&!M.opp.human;
   if(isAI)power=Math.min(1,power/CS.kraft);
@@ -2024,6 +2025,22 @@ function endShotSnk(){
     banner(`Foul – ${foul}. ${pen} Punkte für ${nameOf(oi)}.`,2800);
     if(me&&Math.random()<.6)setTimeout(()=>say(pick(LINES.foul)),600);
     M.turn=oi;M.bih=rec.scratch?{on:true,baulk:'D'}:{on:false};S.on=redsLeft()?'red':'seq';
+    // Fehlstoß (Kugel verfehlt oder falsche zuerst): der Gegner darf zurücklegen lassen
+    const miss=!rec.scratch&&(!first||!rec.legal.includes(first.id))&&M.pre&&!M.twoP;
+    if(miss){const pre=M.pre;
+      const replay=()=>{pre.balls.forEach(s=>{const b=byId(s.id);b.x=s.x;b.z=s.z;b.sunk=s.sunk;b.sinkT=s.sunk?9:0;b.vx=b.vz=b.wx=b.wy=b.wz=0;b.sink=null;b.mesh.visible=!s.sunk;});
+        S.on=pre.on;M.turn=pi;M.bih=pre.bih||{on:false};banner(`${pi===0?'Du musst':M.opp.name+' muss'} den Stoß wiederholen.`,2400);updateHud();nextTurn();};
+      if(oi===0){updateHud();phase='over';setTimeout(()=>{
+        modal(`<h2>Foul und Fehlstoß</h2><p>${M.opp.name} hat ${foul.toLowerCase()} – ${pen} Punkte für dich.</p><p class="q">Willst du selbst weiterspielen oder soll ${M.opp.name} den Stoß aus derselben Lage wiederholen?</p><div class="btnrow"><button class="btn primary" id="fmPlay">Selbst spielen</button><button class="btn" id="fmRe">Wiederholen lassen</button></div>`);
+        document.getElementById('fmPlay').onclick=()=>{closeModal();nextTurn();};
+        document.getElementById('fmRe').onclick=()=>{closeModal();replay();};},900);
+        M.isBreak=false;return;}
+      // Die KI entscheidet: liegst du gesnookert, lässt sie dich nochmal ran
+      const cb=byId(0),tg=BALLS.filter(b=>pre.balls.find(s=>s.id===b.id&&!s.sunk)&&rec.legal.includes(b.id));
+      const cs=pre.balls.find(s=>s.id===0);
+      const snookered=tg.length&&tg.every(b=>{const s=pre.balls.find(q=>q.id===b.id);return !pathClearB(pre.balls,cs.x,cs.z,s.x,s.z,[0,b.id],2*R-0.002);});
+      if(snookered&&(M.opp.boss||M.opp.skill>=0.75||Math.random()<0.5)){M.isBreak=false;setTimeout(()=>{say('Nochmal, bitte. Du liegst ja so schön.');replay();},1600);return;}
+    }
   } else if(pts>0){
     S.pts[pi]+=pts;S.brk+=pts;
     S.on=kind==='red'?'colour':(redsLeft()?'red':'seq');
@@ -2162,7 +2179,7 @@ function safetyValue(res){const e=res.end,bs=res.bs;if(!e||e.sunk)return -9;
   if(Math.abs(e.x)>L-0.07||Math.abs(e.z)>W-0.07)s+=0.5;          // Weiße an der Bande ist unangenehm
   return s;}
 function snkBehind(){if(!isSnk(M.mode))return 0;const on=BALLS.filter(b=>b.id&&!b.sunk);const reds=on.filter(b=>b.grp==='red').length;
-  const rest=reds*8+on.filter(b=>b.grp==='colour').reduce((a,b)=>a+b.val,0);const deficit=M.sn.pts[0]-M.sn.pts[1];return {deficit,rest,need:deficit>rest-7};}
+  const rest=reds*8+on.filter(b=>b.grp==='colour').reduce((a,b)=>a+b.val,0);const deficit=M.sn.pts[0]-M.sn.pts[1];return {deficit,rest,need:deficit>rest-7,req:deficit>rest};}
 function aiProg(){const si=M.sal?SALOONS.indexOf(M.sal):-1;return si>=0?si/(SALOONS.length-1):Math.max(0,Math.min(1,((M.opp&&M.opp.skill)||0.6)-0.4)/0.55);}
 function aiPlan(skill){
   const cb=cueBall(),boss=!!(M.opp&&M.opp.boss),prog=aiProg();
@@ -2193,23 +2210,24 @@ function aiPlan(skill){
   if(best&&tactical){let ok=0;const n=4;for(let k=0;k<n;k++){const r=simShot(best.theta+gauss()*sigma,best.power,best.sx,best.sy);if(aiScore(r)>0)ok++;}chance=ok/n;}
   // 2) Sicherheitsstoß: erst direkt anspielbare Kugeln, nur wenn keine direkt erreichbar ist über die Bande
   const sb=snkBehind();
-  const wantSafety=!best||(tactical&&(chance<(sb&&sb.need?0.8:0.5)));
+  const req=sb&&sb.req&&(strong||skill>=0.6);
+  const wantSafety=!best||req||(tactical&&(chance<(sb&&sb.need?0.8:0.5)));
   if(wantSafety){
     let safe=null;const direct=legalB.filter(b=>pathClear(cb.x,cb.z,b.x,b.z,[0,b.id],2*R-0.002)).sort((a,b)=>Math.hypot(a.x-cb.x,a.z-cb.z)-Math.hypot(b.x-cb.x,b.z-cb.z));
-    const nT=tactical?5:strong?3:2, offs=tactical?[-0.8,-0.45,0,0.45,0.8]:[-0.5,0,0.5], pows=tactical?[0.14,0.24,0.38,0.55]:[0.25,0.4];
+    const nT=(tactical||req)?5:strong?3:2, offs=(tactical||req)?[-0.8,-0.45,0,0.45,0.8]:[-0.5,0,0.5], pows=tactical?[0.14,0.24,0.38,0.55]:[0.25,0.4];
     for(const tb of direct.slice(0,nT)){const dx=tb.x-cb.x,dz=tb.z-cb.z,dl=Math.hypot(dx,dz)||1,px=-dz/dl,pz=dx/dl;
       for(const o of offs){const th=Math.atan2(tb.z+pz*o*2*R-cb.z,tb.x+px*o*2*R-cb.x);
         for(const p of pows){const r=simShot(th,p,0,0),sc=aiScore(r);
-          let v;if(sc<0)v=-50+sc*0.01;else if(r.pots.length)v=sc;else v=tactical?safetyValue(r)*(sb&&sb.need?1.6:1):(Math.random()*0.5+(r.cushAfter?0.3:0));
+          let v;if(sc<0)v=-50+sc*0.01;else if(r.pots.length)v=sc;else v=(tactical||req)?safetyValue(r)*(sb&&sb.need?1.6:1):(Math.random()*0.5+(r.cushAfter?0.3:0));
           if(!safe||v>safe.v)safe={theta:th,power:p,sx:0,sy:0,v,sc};}}}
     if(!safe||safe.v<=-40){ // nichts direkt erreichbar: über die Bande
       const opts=[];
       for(let a=0;a<360;a+=2){const th=a*Math.PI/180;for(const p of [0.32,0.5]){const id=firstContactOnly(th,p);if(id!=null&&legal.includes(id))opts.push({th,p});}}
       for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
-      for(const o of opts.slice(0,tactical?24:strong?14:6)){const r=simShot(o.th,o.p,0,0),sc=aiScore(r);const v=sc<0?-50+sc*0.01:r.pots.length?sc:(tactical?safetyValue(r):0);
+      for(const o of opts.slice(0,tactical?24:strong?14:6)){const r=simShot(o.th,o.p,0,0),sc=aiScore(r);const v=sc<0?-50+sc*0.01:r.pots.length?sc:((tactical||req)?safetyValue(r):0);
         if(!safe||v>safe.v)safe={theta:o.th,power:o.p,sx:0,sy:0,v,sc};}}
     // Entscheidung: riskanter Lochstoß oder Sicherheit?
-    if(safe&&(!best||(safe.v>(sb&&sb.need?0.5:1.5)&&chance<0.8)||safe.v>4))best={theta:safe.theta,power:safe.power,sx:0,sy:0,sc:safe.sc>0?safe.sc:0,safety:1};
+    if(safe&&(!best||(req&&safe.v>-40)||(safe.v>(sb&&sb.need?0.5:1.5)&&chance<0.8)||safe.v>4))best={theta:safe.theta,power:safe.power,sx:0,sy:0,sc:safe.sc>0?safe.sc:0,safety:1};
   }
   if(!best){const tb=legalB[0];best={theta:Math.atan2(tb.z-cb.z,tb.x-cb.x),power:0.35,sx:0,sy:0,sc:-1};}
   // Leichtere Gegner verschätzen sich auch mal in der Kraft
@@ -2229,9 +2247,16 @@ function aiPlace(){
   for(let i=0;i<200;i++){let x=baulk?(-L+R+Math.random()*(HEAD_X+L-R)):(Math.random()*2-1)*(L-R),z=(Math.random()*2-1)*(W-R);if(baulk==='D'){const a=Math.PI/2+Math.random()*Math.PI,rr=Math.random()*DR;x=BAULK_X+Math.cos(a)*rr;z=Math.sin(a)*rr;}if(placeValid(x,z,baulk)){cb.x=x;cb.z=z;return;}}
 }
 let aiAnim=null;
+function aiConcede(){if(!isSnk(M.mode)||M.twoP)return false;const sb=snkBehind();if(!sb)return false;
+  const over=sb.deficit-sb.rest;   // so viele Punkte fehlen trotz aller Restkugeln
+  const lim=M.opp.boss?30:20;
+  if(over>lim){phase='over';say(pick(['Den Frame schenk ich dir.','Das hol ich nicht mehr auf. Nächster Frame.','Gut gespielt. Ich gebe den Frame auf.']));
+    setTimeout(()=>frameWon(0,`${M.opp.name} gibt den Frame auf.`),1400);return true;}
+  return false;}
 function aiTurn(){
   if(phase!=='ai'||!M)return;
   if(intro){setTimeout(aiTurn,300);return;}
+  if(aiConcede())return;
   const skill=Math.min(0.97,M.opp.skill+(M.opp.boss?0.02+0.05*aiProg():0));
   if(M.bih.on){aiPlace();M.bih={on:false};}
   if(chalkLv[1]<0.45&&Math.random()<0.4+skill*0.6){chalkLv[1]=1;SND.chalk();updateChalk();}
@@ -2275,19 +2300,37 @@ function startIntro(){
 function endIntro(){if(!intro)return;intro=null;}
 /* ---- Pokal-Szene nach dem Sieg über einen Chef ---- */
 let celeb=null;
-function makeTrophy(){const g=new THREE.Group();const gold=new THREE.MeshPhysicalMaterial({color:0xffd66a,metalness:1,roughness:.16,clearcoat:.6,envMapIntensity:2.2,emissive:0x3a2600});
-  const cup=new THREE.Mesh(new THREE.LatheGeometry([[0,0],[0.07,0],[0.07,0.012],[0.02,0.03],[0.016,0.1],[0.03,0.12],[0.075,0.16],[0.09,0.26],[0.084,0.27],[0.0,0.2]].map(p=>new THREE.Vector2(p[0],p[1])),40),gold);g.add(cup);
-  for(const s of [-1,1]){const h=new THREE.Mesh(new THREE.TorusGeometry(0.04,0.008,10,24,Math.PI*1.2),gold);h.position.set(s*0.095,0.21,0);h.rotation.z=s>0?-Math.PI*0.6:Math.PI*1.6;g.add(h);}
-  const base=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.05,0.13),new THREE.MeshPhysicalMaterial({color:0x1a1210,roughness:.3,clearcoat:1}));base.position.y=-0.025;g.add(base);
-  const star=new THREE.Mesh(new THREE.OctahedronGeometry(0.022),gold);star.position.y=0.3;g.add(star);
+function makeTrophy(){const g=new THREE.Group();
+  const gold=new THREE.MeshPhysicalMaterial({color:0xd9a842,metalness:1,roughness:.2,clearcoat:.8,clearcoatRoughness:.08,envMapIntensity:2.4});
+  const goldDark=new THREE.MeshPhysicalMaterial({color:0x9a6a1c,metalness:1,roughness:.35,envMapIntensity:1.8});
+  // glattes Profil: Fuß, Stiel mit Knauf, Kelch mit Lippe
+  const P=[[0,0],[0.075,0],[0.078,0.006],[0.07,0.014],[0.05,0.02],[0.03,0.032],[0.02,0.05],[0.017,0.075],[0.026,0.085],[0.028,0.092],[0.018,0.1],[0.016,0.115],[0.028,0.13],[0.055,0.15],[0.075,0.18],[0.088,0.22],[0.093,0.255],[0.096,0.272],[0.1,0.276],[0.096,0.28],[0.088,0.276],[0.082,0.25],[0.0,0.17]];
+  const curve=new THREE.SplineCurve(P.slice(0,19).map(p=>new THREE.Vector2(p[0],p[1])));
+  const pts=curve.getPoints(90).concat(P.slice(19).map(p=>new THREE.Vector2(p[0],p[1])));
+  const cup=new THREE.Mesh(new THREE.LatheGeometry(pts,96),gold);cup.geometry.computeVertexNormals();g.add(cup);
+  // Zierringe
+  for(const [r,y] of [[0.029,0.09],[0.072,0.172],[0.098,0.274]]){const ring=new THREE.Mesh(new THREE.TorusGeometry(r,0.004,12,96),goldDark);ring.rotation.x=Math.PI/2;ring.position.y=y;g.add(ring);}
+  // Henkel: durchgehende Rohre, die an beiden Enden im Kelch stecken
+  for(const s of [-1,1]){const c=new THREE.CatmullRomCurve3([new THREE.Vector3(s*0.085,0.245,0),new THREE.Vector3(s*0.135,0.255,0),new THREE.Vector3(s*0.155,0.215,0),new THREE.Vector3(s*0.13,0.17,0),new THREE.Vector3(s*0.07,0.155,0)]);
+    const h=new THREE.Mesh(new THREE.TubeGeometry(c,48,0.008,14,false),gold);g.add(h);
+    for(const v of [c.points[0],c.points[4]]){const k=new THREE.Mesh(new THREE.SphereGeometry(0.011,16,12),gold);k.position.copy(v);g.add(k);}}
+  // Sockel aus dunklem Holz mit goldenem Schild
+  const wood=new THREE.MeshPhysicalMaterial({color:0x2a1408,roughness:.35,clearcoat:1,clearcoatRoughness:.1});
+  const b1=new THREE.Mesh(new THREE.BoxGeometry(0.17,0.035,0.17),wood);b1.position.y=-0.0175;g.add(b1);
+  const b2=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.03,0.2),wood);b2.position.y=-0.05;g.add(b2);
+  const pl=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.022,0.003),gold);pl.position.set(0,-0.0175,0.0866);g.add(pl);
+  // Kugel obendrauf statt Raute
+  const top=new THREE.Mesh(new THREE.SphereGeometry(0.02,24,16),gold);top.position.y=0.3;g.add(top);
+  const st=new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.008,0.022,12),gold);st.position.y=0.282;g.add(st);
   const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.42,2.4,24,1,true),new THREE.MeshBasicMaterial({color:0xfff0c0,transparent:true,opacity:.13,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));beam.position.y=1.1;g.add(beam);g.userData.beam=beam;
-  const l=new THREE.PointLight(0xffe0a0,1.4,2.5,2);l.position.set(0.2,0.45,0.25);g.add(l);return g;}
+  const l=new THREE.PointLight(0xfff0d0,1.6,2.5,2);l.position.set(0.25,0.45,0.3);g.add(l);
+  const l2=new THREE.PointLight(0xffc880,0.8,2,2);l2.position.set(-0.3,0.2,-0.2);g.add(l2);return g;}
 function fanfare(){if(!sfxOk())return;const t=AC.currentTime;[[523,0],[659,0.14],[784,0.28],[1047,0.46],[784,0.66],[1047,0.8]].forEach(([f,d],i)=>{tn(t+d,f,f,i===5?0.9:0.22,0.16,'triangle',SFX,0.01);tn(t+d,f*2,f*2,i===5?0.6:0.15,0.05,'sine',SFX,0.01);});}
 function celebrate(done){const tr=makeTrophy();tr.scale.setScalar(1.45);tr.position.set(0,-0.3,0);scene.add(tr);aimGroup.visible=false;cueRoot.visible=false;
   celeb={t:0,dur:5.2,tr,done,burst:[0.7,1.7,2.9]};fanfare();cheerT=4;banner('Pokal gewonnen!',3000);
   const skip=()=>{if(celeb&&celeb.t>0.6)celeb.t=celeb.dur;};canvas.addEventListener('pointerdown',skip,{once:true});}
 function celebCam(fdt){const c=celeb;c.t+=fdt;const u=Math.min(1,c.t/c.dur),e=u*u*(3-2*u);
-  const rise=Math.min(1,c.t/1.1),ease=1-Math.pow(1-rise,3);c.tr.position.y=-0.3+0.32*ease;c.tr.rotation.y+=fdt*(1.6-1.0*u);
+  const rise=Math.min(1,c.t/1.1),ease=1-Math.pow(1-rise,3);c.tr.position.y=-0.3+0.41*ease;c.tr.rotation.y+=fdt*(1.6-1.0*u);
   c.tr.userData.beam.material.opacity=0.08+0.08*Math.sin(c.t*5);
   while(c.burst.length&&c.t>=c.burst[0]){c.burst.shift();confetti(0,0.85,0,80,0.7);SND.click&&SND.click(0.6);}
   // Action-Kamera: tief und schnell herein, dann im Bogen um den Pokal, am Ende nah ran
