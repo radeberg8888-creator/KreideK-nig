@@ -2077,10 +2077,7 @@ canvas.addEventListener('pointerdown',e=>{
   audioOn();
   if(!M||(phase!=='aim'&&phase!=='place'))return;
   canvas.setPointerCapture(e.pointerId);const q=loc(e,canvas);drag={x:q.x,y:q.y,theta:aim.theta,pitch:camPitch,mode:'aim'};
-  if(phase==='aim'){const p=tablePoint(e);
-    if(p){const a=alongCue(p);
-      // Auf die Queue oder die Weiße tippen = Ausholen und Stoßen
-      if(a.d<0.11||(a.al<0&&a.al>-1.6&&a.pe<0.07)){drag.mode='stroke';drag.start=a.al;drag.pull=0;drag.hist=[];stroke.on=true;stroke.pull=0;setPower(0);return;}}}
+  // Kein Ausholen mit dem Finger mehr: gestoßen wird nur über den Stoß-Knopf
   handleDrag(e,true);
 });
 canvas.addEventListener('pointermove',e=>{if(!drag)return;if(drag.mode==='stroke')strokeMove(e);else handleDrag(e,false);});
@@ -2540,7 +2537,7 @@ function showHelp(){
   pageHead('Hilfe');
   const d=document.createElement('div');d.className='optrow help';
   d.innerHTML=`<h3>Zielen</h3><ul><li>Finger auf den Tisch legen: Die Queue zeigt dorthin.</li><li>◀ ▶ in der Leiste zum Feinzielen.</li><li>Die Pfeilspur endet am Ring – dort trifft die Weiße die Objektkugel.</li></ul>
-   <h3>Stoßen</h3><ul><li>Auf die Queue oder die Weiße tippen, Finger nach hinten ziehen (ausholen) und zügig nach vorn schieben.</li><li>Tempo des Vorschubs = Kraft. Nur ausholen und loslassen geht auch.</li><li>Alternativ den Kraftbalken unten ziehen und loslassen.</li></ul>
+   <h3>Stoßen</h3><ul><li>Kraft über den Kraftbalken einstellen.</li><li>Gestoßen wird nur mit dem Stoß-Knopf. Wischen auf dem Tisch dreht nur die Zielrichtung, auch auf der Queue oder der Weißen.</li></ul>
    <h3>Effet und Kreide</h3><ul><li>Auf die Effet-Kugel tippen: oben Nachläufer, unten Rückläufer, seitlich Seiteneffet. Doppeltippen setzt zurück.</li><li>Kreide hält ein paar Stöße. Ohne Kreide und mit viel Effet droht ein Kicks.</li></ul>
    ${Object.keys(RULES).map(k=>`<h3>${RULES[k].name}</h3><ul>${RULES[k].sheet.map(x=>`<li>${x}</li>`).join('')}</ul>`).join('')}`;
   menuWrap.appendChild(d);
