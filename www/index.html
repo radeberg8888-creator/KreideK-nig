@@ -1282,7 +1282,19 @@ const TABLE_STYLES={
 let AIMK=1,AIMDARK=false;
 function aimContrast(hex){const c=new THREE.Color(hex);const l=0.299*c.r+0.587*c.g+0.114*c.b;AIMDARK=l>0.42;AIMK=AIMDARK?1.7:1.15;
   if(typeof CHEV!=='undefined'){CHEV.forEach(m=>m.material.color.set(AIMDARK?0x14081e:0xffffff));OBCHEV.forEach(m=>m.material.color.set(AIMDARK?0x5a1a00:0xffe9a8));ghost.material.color.set(AIMDARK?0x14081e:0xffffff);}}
-function paintCloth(hex,key){aimContrast(hex);const g=clothC.getContext('2d'),W=1024,H=512;g.fillStyle=hex;g.fillRect(0,0,W,H);
+/* Dunkle Tücher: Banden und Taschenränder bekommen eine eigene, hellere Farbe, damit man die Löcher sieht */
+let darkTab=null;
+function tableContrast(hex,key){const c=new THREE.Color(hex),l=0.299*c.r+0.587*c.g+0.114*c.b;
+  if(l>=0.2){darkTab=null;}else{const st=key&&TABLE_STYLES[key];let a;
+    if(st){a=new THREE.Color(st.trim);const h={};a.getHSL(h);a.setHSL(h.h,Math.min(0.7,h.s),0.33);}
+    else{const h={};c.getHSL(h);a=new THREE.Color().setHSL(h.h,h.s<0.08?0:Math.min(0.55,h.s+0.15),0.36);}
+    darkTab={cush:a,ring:a.clone().lerp(new THREE.Color(0xffffff),0.35)};}
+  applyContrast();}
+function applyContrast(){try{
+  if(darkTab){cushMat.map=null;cushMat.color.copy(darkTab.cush);pocketRingMat.color.copy(darkTab.ring);pocketRingMat.visible=true;}
+  else{cushMat.map=clothTex;cushMat.color.setHex(0xa8a8a8);pocketRingMat.visible=false;}
+  cushMat.needsUpdate=true;}catch(e){}}
+function paintCloth(hex,key){aimContrast(hex);tableContrast(hex,key);const g=clothC.getContext('2d'),W=1024,H=512;g.fillStyle=hex;g.fillRect(0,0,W,H);
   const st=key&&TABLE_STYLES[key];if(st){const oc=cvs(W,H),og=oc.getContext('2d');st.draw(og,W,H);g.save();g.globalAlpha=0.38;g.drawImage(oc,0,0);g.restore();}
   const img=g.getImageData(0,0,W,H),d=img.data;
   for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*12;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}g.putImageData(img,0,0);clothTex.needsUpdate=true;}
@@ -1302,9 +1314,11 @@ const woodMat=new THREE.MeshPhysicalMaterial({map:woodTex,roughness:.35,clearcoa
 const apronMat=new THREE.MeshStandardMaterial({map:woodTex,roughness:.5,color:0x9a7a6a});
 const diaMat=new THREE.MeshPhysicalMaterial({color:0xf4efe2,roughness:.2,clearcoat:1});
 const holeMat=new THREE.MeshBasicMaterial({color:0x020202});
+const pocketRingMat=new THREE.MeshBasicMaterial({color:0xffffff,visible:false});
 const linerMat=new THREE.MeshBasicMaterial({color:0x050505,side:THREE.DoubleSide});
 const chromeMat=new THREE.MeshPhysicalMaterial({color:0xcfd3d8,metalness:1,roughness:.18});
 const IN=0.045, MID=0.088, OUT=0.19, RT=0.042;
+applyContrast();
 const aoMat=(function(){const c=cvs(512,256),g=c.getContext('2d');
   const e=22;[[0,0,512,e,0,0,0,e],[0,256-e,512,e,0,256,0,256-e],[0,0,e,256,0,0,e,0],[512-e,0,e,256,512,0,512-e,0]].forEach(a=>{const gr=g.createLinearGradient(a[4],a[5],a[6],a[7]);gr.addColorStop(0,'rgba(0,0,0,.55)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(a[0],a[1],a[2],a[3]);});
   return new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false});})();
@@ -1344,6 +1358,7 @@ function buildTable(kind){
   for(let i=1;i<4;i++){const z=-W+i*(2*W/4);[-1,1].forEach(s=>flat(new THREE.CircleGeometry(0.008,4),diaMat,s*(L+(MID+OUT)/2),RT+0.0012,z));}
   POCKETS.forEach(p=>{
     flat(new THREE.CircleGeometry(p.r+0.004,32),holeMat,p.x,0.0009,p.z);
+    flat(new THREE.RingGeometry(p.r+0.004,p.r+0.013,40),pocketRingMat,p.x,0.001,p.z);
     const liner=new THREE.Mesh(new THREE.CylinderGeometry(p.r+0.004,p.r,RT+0.012,32,1,true),linerMat);liner.position.set(p.x,RT/2,p.z);table.add(liner);
     // Ring auf der Außenseite der Tasche: Mitte zeigt vom Tisch weg, die Öffnung zur Spielfläche bleibt frei
     const A=p.c?Math.PI*1.25:Math.PI, psi=Math.atan2(Math.sign(p.z),p.c?Math.sign(p.x):0);
