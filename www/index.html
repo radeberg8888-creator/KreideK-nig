@@ -1281,7 +1281,7 @@ const TABLE_STYLES={
 };
 let AIMK=1,AIMDARK=false;
 function aimContrast(hex){const c=new THREE.Color(hex);const l=0.299*c.r+0.587*c.g+0.114*c.b;AIMDARK=l>0.42;AIMK=AIMDARK?1.7:1.15;
-  if(typeof CHEV!=='undefined'){CHEV.forEach(m=>m.material.color.set(AIMDARK?0x14081e:0xffffff));OBCHEV.forEach(m=>{m.material.color.set(AIMDARK?0xff1060:0xffd23a);m.children[0].material.color.set(0x12000a);});ghost.material.color.set(AIMDARK?0x14081e:0xffffff);}}
+  if(typeof CHEV!=='undefined'){CHEV.forEach(m=>m.material.color.set(AIMDARK?0x14081e:0xffffff));OBCHEV.forEach(m=>{m.material.color.set(AIMDARK?0x1a0614:0xffd23a);m.children[0].material.color.set(AIMDARK?0xfff4e0:0x12000a);});ghost.material.color.set(AIMDARK?0x14081e:0xffffff);}}
 /* Dunkle Tücher: Banden und Taschenränder bekommen eine eigene, hellere Farbe, damit man die Löcher sieht */
 let darkTab=null;
 function tableContrast(hex,key){const c=new THREE.Color(hex),l=0.299*c.r+0.587*c.g+0.114*c.b;
@@ -2767,7 +2767,7 @@ function updateAimVisuals(t){
    for(let i=0;i<OBCHEV.length;i++){const m=OBCHEV[i],d=R*1.4+i*sp2+ph2;
      if(!show||d>R*1.4+show){m.visible=false;continue;}
      m.visible=true;m.position.set(hitBall.x+nx*d,0.0015,hitBall.z+nz*d);m.rotation.z=ang;
-     const op=Math.max(0.35,Math.min(1,1.15-0.75*(d-R*1.4)/show));m.material.opacity=op;m.children[0].material.opacity=op*(AIMDARK?0.7:0.6);}}
+     const op=AIMDARK?Math.max(0.8,Math.min(1,1.1-0.3*(d-R*1.4)/show)):Math.max(0.35,Math.min(1,1.15-0.75*(d-R*1.4)/show));m.material.opacity=op;m.children[0].material.opacity=op*(AIMDARK?0.45:0.6);}}
   const guide=(M.practice||M.twoP)?1:(M.turn===0?M.sal.guide:0);
   if(false){
     const pr=predict(stroke.on||aim.power>0.02?Math.max(0.05,aim.power):lastPredPow);
