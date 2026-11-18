@@ -1667,12 +1667,24 @@ const cueRoot=new THREE.Group();scene.add(cueRoot);
   tip.rotation.x=Math.PI/2;tip.position.z=-0.003;cueRoot.add(tip);cueRoot.userData.tip=tip;cueRoot.userData.parts={shaft,butt,ring};
   cueRoot.traverse(o=>{if(o.isMesh)o.castShadow=true;});
   const holder=new THREE.Group();cueRoot.add(holder);
-  const mat=new THREE.MeshBasicMaterial({transparent:true,alphaTest:0.35,side:THREE.DoubleSide,toneMapped:false});
+  const mat=new THREE.MeshStandardMaterial({transparent:true,alphaTest:0.35,side:THREE.DoubleSide,roughness:.32,metalness:.12,envMapIntensity:1.2});
   const plane=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat);plane.rotation.y=-Math.PI/2;holder.add(plane);
   plane.customDepthMaterial=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,alphaTest:0.35});plane.castShadow=true;
-  holder.visible=false;cueRoot.userData.cut={holder,plane,mat,basic:[shaft,butt,ring,ferrule,tip]};
+  holder.visible=false;cueRoot.userData.cut={holder,plane,mat,basic:[shaft,butt,ring,ferrule,tip],front:[ferrule,tip]};
 })();
-const cutTex={};
+const cutTex={},cutNrm={};
+/* Aus dem freigestellten Bild eine Wölbung (Normal-Map) berechnen: jede Spalte wird wie ein runder Stab beleuchtet */
+function cutNormal(key,img){const w=img.naturalWidth,h=img.naturalHeight,c=cvs(w,h),g=c.getContext('2d');g.drawImage(img,0,0);
+  const src=g.getImageData(0,0,w,h).data,out=g.createImageData(w,h),o=out.data;let tipHalf=0,tipN=0;
+  for(let x=0;x<w;x++){let y=0;
+    while(y<h){while(y<h&&src[(y*w+x)*4+3]<90){const i=(y*w+x)*4;o[i]=128;o[i+1]=128;o[i+2]=255;o[i+3]=255;y++;}
+      const a=y;while(y<h&&src[(y*w+x)*4+3]>=90)y++;const b=y-1;if(b<a)continue;
+      const mid=(a+b)/2,half=Math.max(1,(b-a)/2+0.5);
+      if(x>w*0.93&&x<w*0.96&&b-a>2){tipHalf+=half;tipN++;}
+      for(let k=a;k<=b;k++){const v=Math.max(-0.97,Math.min(0.97,(mid-k)/half)),nz=Math.sqrt(1-v*v),i=(k*w+x)*4;
+        o[i]=128;o[i+1]=Math.round(128+127*v*0.9);o[i+2]=Math.round(128+127*nz);o[i+3]=255;}}}
+  g.putImageData(out,0,0);const tx=new THREE.CanvasTexture(c);tx.anisotropy=4;
+  cutNrm[key]={tx,tipFrac:tipN?tipHalf/tipN/h:0.02};}
 function cueBillboard(){const u=cueRoot.userData.cut;if(!u||!u.holder.visible)return;cueRoot.updateMatrixWorld();
   const v=cueRoot.worldToLocal(camera.position.clone());u.holder.rotation.z=Math.atan2(v.y,v.x)+Math.PI;}
 /* Queues: eigene Designs, jede mit eigenen Werten (1–10) */
@@ -1760,10 +1772,17 @@ let cueNow='';
 function applyCue(key){key=key||myCue();if(key===cueNow)return;cueNow=key;const c=CUES[key]||CUES.kneipe,p=cueRoot.userData.parts;
   const U=cueRoot.userData.cut;
   if(hasCut(key)){const C=KK_CUECUT[key];
-    if(!cutTex[key]){const tx=new THREE.TextureLoader().load(C.img,()=>{cueNow='';});tx.encoding=THREE.sRGBEncoding;tx.anisotropy=renderer.capabilities.getMaxAnisotropy();cutTex[key]=tx;}
-    const Lc=1.47,h=Lc*C.ar*(C.v===2?1:0.85);U.plane.geometry.dispose();U.plane.geometry=new THREE.PlaneGeometry(Lc,h);
-    U.plane.position.set(0,(C.ax-0.5)*h,-Lc/2);U.mat.map=cutTex[key];U.mat.needsUpdate=true;U.plane.customDepthMaterial.map=cutTex[key];U.plane.customDepthMaterial.needsUpdate=true;
-    U.holder.visible=true;U.basic.forEach(m=>m.visible=false);return;}
+    if(!cutTex[key]){const tx=new THREE.TextureLoader().load(C.img,im=>{try{cutNormal(key,tx.image);}catch(e){}cueNow='';});tx.encoding=THREE.sRGBEncoding;tx.anisotropy=renderer.capabilities.getMaxAnisotropy();cutTex[key]=tx;}
+    // vorne echte 3D-Zwinge mit Leder, das Bild endet dahinter (die gemalte Spitze wird abgeschnitten)
+    const bare=key==='ritter',FR=bare?0:0.028,crop=bare?1:0.965,Lc=1.47,h=Lc*C.ar*(C.v===2?1:0.85),Lv=Lc*crop;
+    U.plane.geometry.dispose();U.plane.geometry=new THREE.PlaneGeometry(Lv,h);
+    const tx=cutTex[key];tx.repeat.set(crop,1);tx.offset.set(0,0);
+    U.plane.position.set(0,(C.ax-0.5)*h,-FR-Lv/2);U.mat.map=tx;
+    const N=cutNrm[key];if(N){N.tx.repeat.set(crop,1);U.mat.normalMap=N.tx;U.mat.normalScale.set(1,1);}else U.mat.normalMap=null;
+    U.mat.needsUpdate=true;U.plane.customDepthMaterial.map=tx;U.plane.customDepthMaterial.needsUpdate=true;
+    const r=Math.max(0.0045,Math.min(0.009,(N?N.tipFrac:0.03)*h));U.front.forEach(m=>{m.scale.set(r/0.0062,1,r/0.0062);});
+    U.holder.visible=true;U.basic.forEach(m=>m.visible=false);U.front.forEach(m=>m.visible=!bare);return;}
+  U.front.forEach(m=>m.scale.set(1,1,1));
   U.holder.visible=false;U.basic.forEach(m=>m.visible=true);
   if(!cueTex[key]){const cv=cvs(128,2048),g=cv.getContext('2d');g.save();g.translate(0,2048);g.rotate(-Math.PI/2);
     KK_CUEART.drawCueArt(g,key,2048,128,{flat:true});g.restore();
