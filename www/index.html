@@ -1882,8 +1882,11 @@ const TABLE_STYLES={
    g.strokeStyle='rgba(220,140,50,.8)';g.lineWidth=3;g.setLineDash([12,8]);g.strokeRect(22,22,W-44,H-44);g.setLineDash([]);}},
  cap:{name:'Sport',base:'#1f5fa8',rail:0xd8d8d8,trim:0xffffff,draw(g,W,H){g.fillStyle='rgba(255,255,255,.55)';g.fillRect(0,H/2-34,W,12);g.fillRect(0,H/2+22,W,12);
    g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=4;g.beginPath();g.arc(W/2,H/2,70,0,7);g.stroke();}},
- muetze:{name:'Stadt',base:'#4a4f5a',rail:0x6a6a6a,trim:0x9ad0ff,draw(g,W,H){const cols=['#9ad0ff','#ffb0d0','#c8ff9a','#ffe08a'];for(let i=0;i<14;i++){g.fillStyle=cols[i%4];g.globalAlpha=.3;const x=Math.random()*W,w=40+Math.random()*70;g.beginPath();g.ellipse(x,0,w,30,0,0,7);g.fill();
-   for(let d=0;d<4;d++){const dx=x-w/2+Math.random()*w,l=30+Math.random()*90;g.fillRect(dx,0,8,l);g.beginPath();g.arc(dx+4,l,6,0,7);g.fill();}}g.globalAlpha=1;}},
+ muetze:{name:'Stadt',base:'#4a4f5a',rail:0x6a6a6a,trim:0x9ad0ff,draw(g,W,H){const cols=['#9ad0ff','#ffb0d0','#c8ff9a','#ffe08a'];
+   // Stadtlichter bei Nacht: weiche runde Lichtpunkte, keine Striche (sahen sonst aus wie Queues im Tuch)
+   for(let i=0;i<46;i++){const x=Math.random()*W,y=Math.random()*H,r=8+Math.random()*34,c=cols[i%4];const gr=g.createRadialGradient(x,y,0,x,y,r);
+     gr.addColorStop(0,c);gr.addColorStop(0.55,c);gr.addColorStop(1,'rgba(0,0,0,0)');g.globalAlpha=0.18+Math.random()*0.2;g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,7);g.fill();}
+   g.globalAlpha=1;}},
  frau_kurz:{name:'Geometrie',base:'#1a6b6b',rail:0xa0a0a0,trim:0xe8e8e8,draw(g,W,H){g.strokeStyle='rgba(255,255,255,.22)';g.lineWidth=2;for(let i=0;i<14;i++){g.beginPath();const x=Math.random()*W,y=Math.random()*H,r=30+Math.random()*60;for(let k=0;k<3;k++){const a=k*2.094+Math.random();g.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);}g.closePath();g.stroke();}}}
 };
 let AIMK=1,AIMDARK=false;
@@ -2091,7 +2094,7 @@ function buildCrowd(seed,sl){crowd.forEach(p=>{life.remove(p.f.root);if(p.cue)li
       if(sp[0]==='drink'||(sp[0]==='talk'&&fseed%2)){const gl=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.027,0.12,14),glassMat);gl.position.set(0,-0.09,0.035);f.b.handR.add(gl);}}
     f.root.position.set(sp[1],FY,sp[2]);f.root.rotation.y=Math.atan2(sp[3]-sp[1],sp[4]-sp[2]);f.root.scale.setScalar(1);life.add(f.root);
     const p={f,role:sp[0],acc:0};f.speed=0.85+((fseed*13)%30)/100;
-    if(sp[0]==='play'){p.cue=new THREE.Mesh(new THREE.CylinderGeometry(0.0065,0.014,1.45,10),crowdCueMat);life.add(p.cue);f.cue=p.cue;}
+    if(sp[0]==='play'){p.cue=new THREE.Mesh(new THREE.CylinderGeometry(0.0065,0.014,1.45,10),crowdCueMat);p.cue.visible=false;life.add(p.cue);f.cue=p.cue;}
     crowd.push(p);setTimeout(next,16);};setTimeout(next,0);}
 const _cv=new THREE.Vector3(),_frus=new THREE.Frustum(),_pm=new THREE.Matrix4(),_sph=new THREE.Sphere();
 function poseCrowd(dt,T){if(!crowd.length)return;
@@ -3775,7 +3778,7 @@ function loop(now){
   if(phase!=='roll'&&rollGain&&rollGain.gain.value>0.001)rollGain.gain.setTargetAtTime(0,AC.currentTime,0.05);
   if(phase==='aim'&&M&&!M.practice){hurryT+=fdt;if(hurryT>25){hurryT=0;say(pick(LINES.hurry));}}else hurryT=0;
   syncMeshes(fdt);
-  fxUpdate(fdt);if(viewMode!=='top'||phase==='menu'||phase==='room'||intro||celeb)lifeUpdate(fdt,now/1000);
+  fxUpdate(fdt);if(viewMode!=='top'||phase==='menu'||phase==='room'||intro||celeb)lifeUpdate(fdt,now/1000);else crowd.forEach(p=>{if(p.cue)p.cue.visible=false;});
   updateAimVisuals(now/1000);
   updateCamera(fdt);
   layoutTray();
